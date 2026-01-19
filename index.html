@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>VIP LOUNGE</title>
   
-  <!-- 引入質感圓體字 -->
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;500;700&display=swap" rel="stylesheet">
+  <!-- 1. 字體改為 Montserrat (支援粗細變化) -->
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;800&display=swap" rel="stylesheet">
   
   <script src="https://cdn.tailwindcss.com"></script>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -29,13 +29,14 @@
       --gold-light: #f1c40f;
     }
 
-    * { font-family: 'Noto Sans TC', sans-serif !important; }
+    /* 應用 Montserrat 字體 */
+    * { font-family: 'Montserrat', sans-serif !important; }
     
     body { 
       background-color: var(--bg-dark); 
       color: var(--text-main); 
       -webkit-tap-highlight-color: transparent; 
-      font-weight: 300; 
+      font-weight: 400; 
       overflow-x: hidden; 
     }
     .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -45,31 +46,30 @@
     @keyframes floating { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
     .animate-float { animation: floating 4s ease-in-out infinite; }
     
-    img { display: block; max-width: 100%; height: auto; border-radius: 0px; } /* 圖片也改為直角 */
+    /* 保持方正風格 */
+    img { display: block; max-width: 100%; height: auto; border-radius: 0px; }
     
-    /* 黑金漸層背景 - 移除圓角 */
+    /* 黑金漸層背景 */
     .vip-gradient { background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%); border-bottom: 1px solid #333; }
     .gold-text-gradient { background: linear-gradient(to right, #d4af37, #f1c40f); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    /* 移除圓角設定 */
     .glass-card { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 215, 0, 0.1); border-radius: 0; }
     
-    /* 兌換券樣式 - 方形化 */
+    /* 兌換券樣式 - 方形 */
     .coupon-card {
       background: #1e1e1e;
       border: 1px solid #333;
-      border-radius: 0; /* 直角 */
+      border-radius: 0;
       position: relative;
       overflow: hidden;
       transition: all 0.4s ease;
     }
-    /* 裝飾用的小缺口改為方形或移除，這裡改為方形缺口以符合風格 */
     .coupon-card::before, .coupon-card::after {
       content: '';
       position: absolute;
       width: 10px;
       height: 10px;
       background: var(--bg-dark);
-      border-radius: 0; /* 直角缺口 */
+      border-radius: 0;
       top: 50%;
       transform: translateY(-50%);
       z-index: 10;
@@ -86,7 +86,7 @@
       color: #000;
       transition: all 0.3s ease;
       font-weight: 700;
-      border-radius: 0; /* 直角 */
+      border-radius: 0;
       box-shadow: 0 4px 15px rgba(212, 175, 55, 0.1);
     }
     .btn-action:active { transform: scale(0.98); box-shadow: none; }
@@ -101,24 +101,29 @@
     @keyframes marquee { 0% { transform: translate(0, 0); } 100% { transform: translate(-100%, 0); } }
     
     input, textarea { font-weight: 300 !important; color: white !important; border-radius: 0 !important; }
-    button { font-weight: 500 !important; border-radius: 0 !important; }
+    button { font-weight: 600 !important; border-radius: 0 !important; }
     
-    /* 自定義方形 checkbox/radio */
-    input[type="checkbox"], input[type="radio"] { accent-color: #d4af37; }
+    /* Range Slider (機率調整用) */
+    input[type=range] { -webkit-appearance: none; background: transparent; }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; height: 16px; width: 16px; background: #d4af37; cursor: pointer; margin-top: -6px; border-radius: 0;
+    }
+    input[type=range]::-webkit-slider-runnable-track {
+      width: 100%; height: 4px; cursor: pointer; background: #333;
+    }
   </style>
 </head>
 <body>
 
   <div id="root"></div>
 
-  <!-- 載入中動畫 -->
+  <!-- Loading -->
   <div id="loading-screen" style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); text-align:center; color:#d4af37; font-weight:300; z-index:100;">
     <div class="animate-float" style="font-size: 40px; margin-bottom: 10px;">👑</div>
-    <div style="letter-spacing: 2px; font-size: 13px; color: #888;">正在進入 VIP LOUNGE...</div>
+    <div style="letter-spacing: 2px; font-size: 13px; color: #888;">LOADING VIP SYSTEM...</div>
   </div>
 
   <script type="module">
-    // 統一使用 10.8.1 版本
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
     import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
     import { getFirestore, doc, setDoc, updateDoc, collection, onSnapshot, addDoc, increment, serverTimestamp, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
@@ -135,7 +140,6 @@
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
-    // 🚨 指定資料庫名稱 "babychiu"
     const db = getFirestore(app, "babychiu");
     const finalAppId = "vip-lounge-v2"; 
 
@@ -154,14 +158,15 @@
       signInAnonymously, onAuthStateChanged 
     } = window.fb;
 
-    // --- 圖示元件 (SVG) ---
+    // --- SVG Icons (保持方正風格) ---
     const Icon = ({ name, size = 24, className = "" }) => {
       const icons = {
-        Point: <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />, // Diamond shape
+        Point: <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />, 
+        Home: (<Fragment><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></Fragment>),
         Camera: (<Fragment><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></Fragment>),
-        Gift: (<Fragment><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"/></Fragment>),
+        Gift: (<Fragment><rect x="3" y="8" width="18" height="4" rx="0"/><path d="M12 8v13M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"/></Fragment>),
         Bell: (<Fragment><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></Fragment>),
-        Lock: (<Fragment><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></Fragment>),
+        Lock: (<Fragment><rect x="3" y="11" width="18" height="11" rx="0"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></Fragment>),
         LogOut: (<Fragment><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></Fragment>),
         Trash2: (<Fragment><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></Fragment>),
         Ticket: (<Fragment><path d="M2 9V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 0 0 4v4a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-4a2 2 0 0 0 0-4Z"/><path d="M13 3v18M9 3v18M15 3v18"/></Fragment>),
@@ -171,9 +176,9 @@
         Alert: (<Fragment><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></Fragment>),
         History: (<Fragment><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></Fragment>),
         Sparkles: (<Fragment><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4M9 3v4M3 5h4M3 9h4"/></Fragment>),
-        Image: (<Fragment><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></Fragment>),
+        Image: (<Fragment><rect x="3" y="3" width="18" height="18" rx="0"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></Fragment>),
         Plus: (<Fragment><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></Fragment>),
-        Dice: (<Fragment><rect x="3" y="3" width="18" height="18" rx="0" ry="0"/><circle cx="8.5" cy="8.5" r="1.5"/><circle cx="15.5" cy="15.5" r="1.5"/><circle cx="15.5" cy="8.5" r="1.5"/><circle cx="8.5" cy="15.5" r="1.5"/><circle cx="12" cy="12" r="1.5"/></Fragment>)
+        Dice: (<Fragment><rect x="3" y="3" width="18" height="18" rx="0"/><circle cx="8.5" cy="8.5" r="1.5"/><circle cx="15.5" cy="15.5" r="1.5"/><circle cx="15.5" cy="8.5" r="1.5"/><circle cx="8.5" cy="15.5" r="1.5"/><circle cx="12" cy="12" r="1.5"/></Fragment>)
       };
       return (
         <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -205,15 +210,17 @@
 
     function App() {
       const [user, setUser] = useState(null);
-      const [activeTab, setActiveTab] = useState('home');
+      const [activeTab, setActiveTab] = useState('dashboard'); // 預設首頁
       const [isAdmin, setIsAdmin] = useState(false);
       const [points, setPoints] = useState(0);
       const [stats, setStats] = useState({ totalIssued: 0, totalRedeemed: 0 });
+      const [settings, setSettings] = useState({ announce: 'Welcome to VIP Lounge', lotteryProb: 0.1 }); // 新增設定狀態
       const [submissions, setSubmissions] = useState([]);
       const [rewards, setRewards] = useState([]);
       const [notifications, setNotifications] = useState([]);
       const [announcement, setAnnouncement] = useState('Welcome to VIP Lounge 🖤');
       const [loading, setLoading] = useState(true);
+      const [showNotifModal, setShowNotifModal] = useState(false); // 通知彈窗
 
       const [desc, setDesc] = useState('');
       const [selectedFile, setSelectedFile] = useState(null);
@@ -265,6 +272,8 @@
 
       useEffect(() => {
         if (!user) return;
+        
+        // 讀取點數
         const unsubStats = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'total'), (d) => {
           if (d.exists()) {
             setPoints(d.data().totalPoints || 0);
@@ -274,8 +283,15 @@
           }
         });
         
-        const unsubAnnounce = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'announce'), (d) => {
-          if (d.exists()) setAnnouncement(d.data().text);
+        // 讀取設定 (跑馬燈 & 機率)
+        const unsubSettings = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), (d) => {
+          if (d.exists()) {
+            setSettings(d.data());
+            setAnnouncement(d.data().announce || 'Welcome');
+          } else {
+            // 預設值
+            setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), { announce: 'Welcome', lotteryProb: 0.1 });
+          }
         });
 
         const unsubSubs = onSnapshot(getPublicRef('submissions'), (s) => {
@@ -295,11 +311,11 @@
           data.sort((a, b) => (b.timestamp?.toMillis ? b.timestamp.toMillis() : Date.now()) - (a.timestamp?.toMillis ? a.timestamp.toMillis() : Date.now()));
           setNotifications(data);
         });
-        return () => { unsubStats(); unsubSubs(); unsubRewards(); unsubNotifs(); unsubAnnounce(); };
+        return () => { unsubStats(); unsubSubs(); unsubRewards(); unsubNotifs(); unsubSettings(); };
       }, [user]);
 
       const deleteItem = async (colName, id, itemName) => {
-        if (!confirm(`確定要刪除「${itemName}」嗎？`)) return;
+        if (!confirm(`確定要刪除這筆紀錄嗎？`)) return;
         try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', colName, id)); } catch (e) { alert("刪除失敗"); }
       };
 
@@ -363,17 +379,33 @@
             totalPoints: increment(-cost),
             totalRedeemed: increment(cost)
           });
-          // 2. 發放薯條券
-          await addDoc(getPublicRef('submissions'), {
-            description: `🍟 抽獎中獎：現炸薯條一份`, 
-            // 這裡放一張薯條的圖
-            image: "https://images.unsplash.com/photo-1630384060421-a4323ceca04b?q=80&w=400&auto=format&fit=crop", 
-            status: 'redeemed', 
-            timestamp: serverTimestamp(), 
-            userId: user.uid, 
-            awardedPoints: -cost
-          });
-          alert("🎉 恭喜！獲得薯條一份！請至「兌換券」查看");
+          
+          // 2. 機率判斷
+          const winChance = settings.lotteryProb || 0.1; // 預設 10%
+          const isWin = Math.random() < winChance;
+
+          if (isWin) {
+            // 中獎
+            await addDoc(getPublicRef('submissions'), {
+              description: `🍟 抽獎中獎：現炸薯條一份`, 
+              image: "https://images.unsplash.com/photo-1630384060421-a4323ceca04b?q=80&w=400&auto=format&fit=crop", 
+              status: 'redeemed', 
+              timestamp: serverTimestamp(), 
+              userId: user.uid, 
+              awardedPoints: -cost
+            });
+            alert("🎉 太神啦！恭喜抽中薯條一份！請至「兌換」查看券");
+          } else {
+            // 沒中 (也要留紀錄，避免帳目不合)
+            await addDoc(getPublicRef('submissions'), {
+              description: `💨 抽獎槓龜：再接再厲`, 
+              status: 'redeemed', // 視為已消費
+              timestamp: serverTimestamp(), 
+              userId: user.uid, 
+              awardedPoints: -cost
+            });
+            alert("💨 哎呀！差一點點，下次一定中！");
+          }
         } catch(e) {
           alert("抽獎失敗，請稍後再試");
           console.error(e);
@@ -429,9 +461,11 @@
         } catch (e) { alert("失敗"); }
       };
 
-      const updateAnnounce = async () => {
-        const newText = prompt("請輸入新公告：", announcement);
-        if (newText) await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'announce'), { text: newText });
+      const updateSettings = async (newAnnounce, newProb) => {
+        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), { 
+          announce: newAnnounce || settings.announce,
+          lotteryProb: newProb !== undefined ? newProb : settings.lotteryProb
+        });
       };
 
       const unreadCountReal = user ? notifications.filter(n => !n.readBy?.includes(user.uid)).length : 0;
@@ -449,7 +483,8 @@
                 <h1 className="text-xl font-bold tracking-widest uppercase italic gold-text-gradient">VIP CLUB</h1>
               </div>
               <div className="flex items-center gap-2">
-                <button onClick={() => setActiveTab('notifs')} className="relative p-2 bg-white/5 transition-all hover:bg-white/10 rounded-none">
+                {/* 鈴鐺改為開啟彈窗 */}
+                <button onClick={() => setShowNotifModal(true)} className="relative p-2 bg-white/5 transition-all hover:bg-white/10 rounded-none">
                   <Icon name="Bell" size={18} className="text-[#a3a3a3]" />
                   {unreadCountReal > 0 && <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[8px] font-black w-4 h-4 flex items-center justify-center border border-[#121212] rounded-none">!</span>}
                 </button>
@@ -458,15 +493,21 @@
                 </button>
               </div>
             </div>
-            <div className="flex justify-center mb-6">
-              <div className="glass-card px-8 py-3 flex items-center gap-4 shadow-[0_0_20px_rgba(212,175,55,0.2)]">
-                <span className="text-4xl font-bold tracking-tight text-[#d4af37] drop-shadow-md">{points}</span>
-                <span className="text-[10px] font-bold text-[#888] uppercase tracking-[0.2em] border-l border-[#333] pl-4">Current<br/>Points</span>
+            
+            {/* Header 點數顯示 (只在非 Dashboard 頁面顯示，因為 Dashboard 有大卡片) */}
+            {activeTab !== 'dashboard' && (
+              <div className="flex justify-center mb-6">
+                <div className="glass-card px-8 py-3 flex items-center gap-4 shadow-[0_0_20px_rgba(212,175,55,0.2)]">
+                  <span className="text-4xl font-bold tracking-tight text-[#d4af37] drop-shadow-md">{points}</span>
+                  <span className="text-[10px] font-bold text-[#888] uppercase tracking-[0.2em] border-l border-[#333] pl-4">Current<br/>Points</span>
+                </div>
               </div>
-            </div>
+            )}
+
             <div className="bg-[#1e1e1e] px-3 py-1.5 marquee mx-2 border border-[#333]">
               <span className="text-[11px] font-medium text-[#d4af37] tracking-wider">{announcement}</span>
             </div>
+            
             {showAdminLogin && !isAdmin && (
               <div className="absolute top-20 right-6 bg-[#1e1e1e] p-6 shadow-2xl z-50 w-64 border border-[#333] animate-in">
                 <p className="text-[10px] font-bold mb-4 text-[#888] uppercase tracking-widest flex items-center gap-2">Security Access</p>
@@ -476,9 +517,90 @@
             )}
           </div>
 
+          {/* 通知彈窗 */}
+          {showNotifModal && (
+            <div className="absolute inset-0 bg-[#121212]/95 z-50 p-6 animate-in flex flex-col">
+              <div className="flex justify-between items-center mb-6 border-b border-[#333] pb-4">
+                <h2 className="text-lg font-bold text-[#e5e5e5] uppercase tracking-widest flex items-center gap-2"><Icon name="Bell" className="text-[#d4af37]"/> 訊息中心</h2>
+                <button onClick={() => setShowNotifModal(false)} className="p-2 text-[#888]">關閉 X</button>
+              </div>
+              <div className="flex-1 overflow-y-auto space-y-4">
+                {notifications.length === 0 && <p className="text-center text-[#444] mt-10">目前沒有新訊息</p>}
+                {notifications.map(n => (
+                  <div key={n.id} className={`p-5 bg-[#1e1e1e] border relative ${n.readBy?.includes(user.uid) ? 'opacity-50 border-[#333]' : 'border-[#d4af37]/50'}`}>
+                    <button onClick={() => deleteItem('notifications', n.id, n.title)} className="absolute top-4 right-4 text-[#444] hover:text-red-500"><Icon name="Trash2" size={14} /></button>
+                    <p className="font-bold text-sm text-[#e5e5e5] mb-2">{n.title}</p>
+                    <p className="text-xs text-[#a3a3a3] leading-relaxed">{n.body}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 pt-4 border-t border-[#333]">
+                 <button onClick={() => { if(confirm('清除所有通知？')) notifications.forEach(n => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notifications', n.id))); }} className="w-full text-xs text-[#444] py-3 border border-[#333] hover:bg-[#222]">清除所有訊息</button>
+              </div>
+            </div>
+          )}
+
           <div className="p-5 flex-1 overflow-y-auto no-scrollbar">
             
-            {/* 1. 集點分頁 (已移除動態牆) */}
+            {/* 0. 新增：儀表板首頁 (Dashboard) */}
+            {activeTab === 'dashboard' && (
+              <div className="space-y-8 animate-in">
+                {/* 數位會員卡 */}
+                <div className="bg-gradient-to-br from-[#1e1e1e] to-[#000] p-8 border border-[#333] relative overflow-hidden shadow-2xl h-56 flex flex-col justify-between">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-[#d4af37]/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+                  <div className="flex justify-between items-start z-10">
+                    <div>
+                      <p className="text-[10px] text-[#666] tracking-[0.3em] font-bold mb-1">MEMBER CARD</p>
+                      <h2 className="text-xl font-bold text-white tracking-widest italic">VIP LOUNGE</h2>
+                    </div>
+                    <Icon name="Point" size={32} className="text-[#d4af37]" />
+                  </div>
+                  <div className="z-10">
+                    <p className="text-xs text-[#888] mb-1">TOTAL BALANCE</p>
+                    <h1 className="text-5xl font-bold text-[#d4af37] tracking-tighter">{points}</h1>
+                  </div>
+                  <div className="flex justify-between items-end z-10 border-t border-[#333] pt-4">
+                    <p className="text-[10px] text-[#444] font-mono">ID: {user?.uid?.substring(0,8).toUpperCase()}</p>
+                    <p className="text-[10px] text-[#d4af37] font-bold">DIAMOND TIER</p>
+                  </div>
+                </div>
+
+                {/* 快速入口 */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div onClick={() => setActiveTab('home')} className="bg-[#1e1e1e] p-6 border border-[#333] hover:border-[#d4af37] transition-all cursor-pointer group h-32 flex flex-col justify-between">
+                    <Icon name="Plus" size={28} className="text-[#666] group-hover:text-[#d4af37] transition-colors" />
+                    <div>
+                      <h3 className="font-bold text-[#e5e5e5] text-sm">賺取點數</h3>
+                      <p className="text-[10px] text-[#666] mt-1">上傳任務證明</p>
+                    </div>
+                  </div>
+                  <div onClick={() => setActiveTab('rewards')} className="bg-[#1e1e1e] p-6 border border-[#333] hover:border-[#d4af37] transition-all cursor-pointer group h-32 flex flex-col justify-between">
+                    <Icon name="Gift" size={28} className="text-[#666] group-hover:text-[#d4af37] transition-colors" />
+                    <div>
+                      <h3 className="font-bold text-[#e5e5e5] text-sm">兌換獎勵</h3>
+                      <p className="text-[10px] text-[#666] mt-1">使用點數消費</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 系統介紹 */}
+                <div className="border-t border-[#333] pt-6">
+                  <h3 className="text-xs font-bold text-[#666] mb-4 tracking-widest">SYSTEM STATUS</h3>
+                  <div className="flex gap-4 overflow-x-auto no-scrollbar">
+                    <div className="bg-[#111] p-4 border border-[#222] min-w-[120px] flex-shrink-0">
+                      <p className="text-[10px] text-[#444]">ISSUED</p>
+                      <p className="text-lg font-bold text-[#e5e5e5]">{stats.totalIssued}</p>
+                    </div>
+                    <div className="bg-[#111] p-4 border border-[#222] min-w-[120px] flex-shrink-0">
+                      <p className="text-[10px] text-[#444]">REDEEMED</p>
+                      <p className="text-lg font-bold text-[#e5e5e5]">{stats.totalRedeemed}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 1. 集點分頁 */}
             {activeTab === 'home' && (
               <div className="space-y-6 animate-in">
                 <div className="bg-[#1e1e1e] p-6 border border-[#333] shadow-lg">
@@ -613,30 +735,14 @@
                   <div>
                     <h2 className="text-2xl font-bold text-[#d4af37] uppercase tracking-widest mb-2">LUCKY DRAW</h2>
                     <p className="text-[#888] text-xs">花費 5 點，試試手氣抽薯條</p>
+                    <p className="text-[10px] text-[#444] mt-2">目前中獎機率: {Math.round((settings.lotteryProb || 0.1) * 100)}%</p>
                   </div>
                   <div className="w-full border-t border-[#333] my-4"></div>
                   <button onClick={handleLottery} className="w-full btn-action py-5 text-sm tracking-[0.2em] shadow-[0_0_30px_rgba(212,175,55,0.2)] hover:shadow-[0_0_50px_rgba(212,175,55,0.4)] transition-all">
                     立即抽獎 (-5 P)
                   </button>
                 </div>
-                <p className="text-[10px] text-[#444] mt-4">中獎後請至首頁「兌換券」查看</p>
-              </div>
-            )}
-
-            {/* 3. 通知分頁 */}
-            {activeTab === 'notifs' && (
-              <div className="space-y-4 animate-in">
-                <div className="flex justify-between items-center px-1">
-                  <h2 className="font-bold text-[#e5e5e5] flex gap-2 items-center text-lg"><Icon name="Bell" className="text-[#d4af37]" size={20}/> 訊息中心</h2>
-                  <button onClick={() => { if(confirm('清除所有通知？')) notifications.forEach(n => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notifications', n.id))); }} className="text-[10px] text-[#555] font-bold underline italic tracking-tighter uppercase">Clear All</button>
-                </div>
-                {notifications.map(n => (
-                  <div key={n.id} className={`p-6 bg-[#1e1e1e] border relative transition-all shadow-lg ${n.readBy?.includes(user.uid) ? 'opacity-40 border-transparent' : 'border-[#d4af37]/30'}`}>
-                    <button onClick={() => deleteItem('notifications', n.id, n.title)} className="absolute top-5 right-5 text-[#444] hover:text-red-500 transition-colors"><Icon name="Trash2" size={16} /></button>
-                    <p className="font-bold text-sm text-[#e5e5e5] pr-8">{n.title}</p>
-                    <p className="text-xs text-[#a3a3a3] mt-2 leading-relaxed font-light">{n.body}</p>
-                  </div>
-                ))}
+                <p className="text-[10px] text-[#444] mt-4">中獎後請至「集點 > 兌換券」查看</p>
               </div>
             )}
 
@@ -644,18 +750,40 @@
             {activeTab === 'admin' && isAdmin && (
               <div className="space-y-6 pb-10 animate-in">
                 <div className="bg-gradient-to-r from-[#111] to-[#222] p-6 text-white shadow-lg border border-[#333] relative overflow-hidden">
-                  <h2 className="text-sm font-bold flex gap-2 items-center mb-4 text-[#d4af37]"><Icon name="Chart" size={18}/> 營運報表</h2>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-[#000]/30 p-4 border border-[#333]">
-                      <p className="text-[9px] font-bold text-[#666] uppercase tracking-widest mb-1">總發行</p>
-                      <p className="text-2xl font-bold text-[#e5e5e5]">{stats.totalIssued}</p>
-                    </div>
-                    <div className="bg-[#000]/30 p-4 border border-[#333]">
-                      <p className="text-[9px] font-bold text-[#666] uppercase tracking-widest mb-1">總回收</p>
-                      <p className="text-2xl font-bold text-[#e5e5e5]">{stats.totalRedeemed}</p>
+                  <h2 className="text-sm font-bold flex gap-2 items-center mb-4 text-[#d4af37]"><Icon name="Chart" size={18}/> 系統設置</h2>
+                  
+                  {/* 機率控制器 */}
+                  <div className="mb-6 p-4 border border-[#333] bg-[#000]/30">
+                    <label className="text-xs text-[#888] mb-2 block font-bold uppercase">抽獎中獎機率: {Math.round((settings.lotteryProb || 0.1) * 100)}%</label>
+                    <input 
+                      type="range" min="0" max="1" step="0.01" 
+                      className="w-full accent-[#d4af37]"
+                      value={settings.lotteryProb || 0.1} 
+                      onChange={(e) => setSettings({...settings, lotteryProb: parseFloat(e.target.value)})}
+                      onMouseUp={() => updateSettings(null, parseFloat(settings.lotteryProb))}
+                      onTouchEnd={() => updateSettings(null, parseFloat(settings.lotteryProb))}
+                    />
+                    <div className="flex justify-between text-[10px] text-[#444] mt-1">
+                      <span>0% (必輸)</span><span>50%</span><span>100% (必贏)</span>
                     </div>
                   </div>
-                  <button onClick={updateAnnounce} className="w-full mt-4 bg-[#333] py-2 text-[10px] font-bold transition-all hover:bg-[#444]">修改跑馬燈</button>
+
+                  <button onClick={() => { const t = prompt("請輸入新公告：", settings.announce); if(t) updateSettings(t, null); }} className="w-full bg-[#333] py-2 text-[10px] font-bold transition-all hover:bg-[#444]">修改跑馬燈</button>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-[9px] font-bold text-[#666] px-3 uppercase tracking-[0.2em]">所有交易紀錄 (可刪除)</h3>
+                  <div className="bg-[#1e1e1e] border border-[#333] max-h-60 overflow-y-auto">
+                    {submissions.map(s => (
+                      <div key={s.id} className="flex justify-between items-center p-3 border-b border-[#333] text-xs">
+                        <div className="truncate pr-2 text-[#ccc]">
+                          {s.description} 
+                          <span className="block text-[10px] text-[#666]">{s.timestamp?.toDate().toLocaleDateString()}</span>
+                        </div>
+                        <button onClick={() => deleteItem('submissions', s.id, s.description)} className="text-[#666] hover:text-red-500 p-2"><Icon name="Trash2" size={14}/></button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="bg-[#1e1e1e] p-7 border border-red-900/30 shadow-xl space-y-4">
@@ -665,24 +793,6 @@
                     <input type="number" className="w-full bg-[#121212] border border-[#333] p-4 text-sm font-light outline-none focus:border-red-500 text-white" placeholder="點數 (正數)" value={penaltyAmount} onChange={(e) => setPenaltyAmount(e.target.value)} />
                     <button onClick={handleDeductPoints} disabled={isProcessing} className="w-full py-4 bg-red-600 text-white font-bold text-xs shadow-lg active:scale-95">執行扣點</button>
                   </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h3 className="text-[9px] font-bold text-[#666] px-3 uppercase tracking-[0.2em]">待核准項目</h3>
-                  {submissions.filter(s => s.status === 'pending').map(sub => (
-                    <div key={sub.id} className="bg-[#1e1e1e] p-6 border border-[#333] shadow-lg">
-                      {sub.image && <div className="w-full h-44 mb-5 overflow-hidden bg-[#121212] border border-[#333]"><img src={sub.image} className="w-full h-full object-cover" /></div>}
-                      <p className="text-sm font-bold text-[#e5e5e5] mb-6 leading-relaxed text-center font-light italic">「{sub.description}」</p>
-                      <div className="flex items-center gap-4 mb-6 bg-[#121212] p-4">
-                        <span className="text-xs font-bold text-[#666] shrink-0 uppercase tracking-tighter">給予點數:</span>
-                        <input type="number" className="w-full bg-[#1e1e1e] border-none px-4 py-2 text-sm font-bold text-[#d4af37] outline-none text-center" placeholder="10" value={approvalPoints[sub.id] || ''} onChange={(e) => setApprovalPoints({ ...approvalPoints, [sub.id]: e.target.value })} />
-                      </div>
-                      <div className="flex gap-3">
-                        <button onClick={() => deleteItem('submissions', sub.id, sub.description)} className="flex-1 py-3 bg-[#333] text-[#888] text-[10px] font-bold">拒絕</button>
-                        <button onClick={() => handleApprove(sub, approvalPoints[sub.id] || 10)} disabled={isProcessing} className="flex-[2.5] btn-action text-[10px] tracking-widest">確認發放</button>
-                      </div>
-                    </div>
-                  ))}
                 </div>
 
                 <div className="bg-[#1e1e1e] p-7 border border-[#333] space-y-4 shadow-lg">
@@ -698,33 +808,27 @@
             )}
           </div>
 
-          {/* 底部導航 */}
-          <div className="fixed bottom-0 left-0 right-0 bg-[#121212]/95 backdrop-blur-md border-t border-[#333] px-6 py-5 flex justify-between items-center text-[10px] font-bold text-[#555] max-w-md mx-auto z-50">
-            <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center gap-1.5 transition-all ${activeTab === 'home' ? 'text-[#d4af37] scale-110' : 'hover:text-[#888]'}`}>
-              <Icon name="Camera" size={24} className={activeTab === 'home' ? 'stroke-[2px]' : ''}/>
-              <span>集點</span>
-            </button>
-            <button onClick={() => setActiveTab('rewards')} className={`flex flex-col items-center gap-1.5 transition-all ${activeTab === 'rewards' ? 'text-[#d4af37] scale-110' : 'hover:text-[#888]'}`}>
-              <Icon name="Gift" size={24} className={activeTab === 'rewards' ? 'stroke-[2px]' : ''}/>
-              <span>兌換</span>
-            </button>
-            <button onClick={() => setActiveTab('lottery')} className={`flex flex-col items-center gap-1.5 transition-all ${activeTab === 'lottery' ? 'text-[#d4af37] scale-110' : 'hover:text-[#888]'}`}>
-              <Icon name="Dice" size={24} className={activeTab === 'lottery' ? 'stroke-[2px]' : ''}/>
-              <span>抽獎</span>
-            </button>
-            <button onClick={() => setActiveTab('notifs')} className={`flex flex-col items-center gap-1.5 transition-all ${activeTab === 'notifs' ? 'text-[#d4af37] scale-110' : 'hover:text-[#888]'}`}>
-              <div className="relative">
-                <Icon name="Bell" size={24} className={activeTab === 'notifs' ? 'stroke-[2px]' : ''}/>
-                {unreadCountReal > 0 && <span className="absolute -top-1 -right-1 bg-red-600 w-2.5 h-2.5 rounded-none border border-[#121212]"></span>}
-              </div>
-              <span>通知</span>
-            </button>
-            {isAdmin && (
-              <button onClick={() => setActiveTab('admin')} className={`flex flex-col items-center gap-1.5 transition-all ${activeTab === 'admin' ? 'text-[#d4af37] scale-110' : 'hover:text-[#888]'}`}>
-                <Icon name={isAdmin ? "LogOut" : "Lock"} size={24} className={activeTab === 'admin' ? 'stroke-[2px]' : ''}/>
-                <span>管理</span>
+          {/* 底部導航 (懸浮膠囊樣式) */}
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+            <div className="bg-[#1e1e1e]/90 backdrop-blur-md border border-[#333] px-6 py-3 rounded-full flex gap-6 shadow-2xl items-center">
+              <button onClick={() => setActiveTab('dashboard')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'dashboard' ? 'text-[#d4af37] scale-110' : 'text-[#666] hover:text-[#888]'}`}>
+                <Icon name="Home" size={20} className={activeTab === 'dashboard' ? 'stroke-[2px]' : ''}/>
               </button>
-            )}
+              <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'home' ? 'text-[#d4af37] scale-110' : 'text-[#666] hover:text-[#888]'}`}>
+                <Icon name="Plus" size={20} className={activeTab === 'home' ? 'stroke-[2px]' : ''}/>
+              </button>
+              <button onClick={() => setActiveTab('rewards')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'rewards' ? 'text-[#d4af37] scale-110' : 'text-[#666] hover:text-[#888]'}`}>
+                <Icon name="Gift" size={20} className={activeTab === 'rewards' ? 'stroke-[2px]' : ''}/>
+              </button>
+              <button onClick={() => setActiveTab('lottery')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'lottery' ? 'text-[#d4af37] scale-110' : 'text-[#666] hover:text-[#888]'}`}>
+                <Icon name="Dice" size={20} className={activeTab === 'lottery' ? 'stroke-[2px]' : ''}/>
+              </button>
+              {isAdmin && (
+                <button onClick={() => setActiveTab('admin')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'admin' ? 'text-[#d4af37] scale-110' : 'text-[#666] hover:text-[#888]'}`}>
+                  <Icon name="User" size={20} className={activeTab === 'admin' ? 'stroke-[2px]' : ''}/>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       );
