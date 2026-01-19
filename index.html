@@ -423,10 +423,10 @@
             totalRedeemed: increment(cost)
           });
           
-          // Record transaction
+          // Record transaction (Status: 'spent' to avoid showing as coupon)
           await addDoc(getPublicRef('submissions'), {
             description: `♠️ 21點：入場費`,
-            status: 'redeemed', // shows as negative/spending
+            status: 'spent', // shows as negative/spending but NOT coupon
             timestamp: serverTimestamp(),
             userId: user.uid,
             awardedPoints: -cost
@@ -443,8 +443,7 @@
           setBjGameState('playing');
           setBjMessage('');
 
-          // Check natural blackjack immediately? standard is usually allow playing unless dealer has ace/10. 
-          // Simplified: check 21 after initial deal.
+          // Check natural blackjack immediately
           if (calculateHand(pHand) === 21) {
              finishBlackjack(pHand, dHand, cost, true);
           }
@@ -493,10 +492,10 @@
             totalRedeemed: increment(extraCost)
           });
           
-          // Record transaction
+          // Record transaction (Status: 'spent')
           await addDoc(getPublicRef('submissions'), {
             description: `♠️ 21點：雙倍下注`,
-            status: 'redeemed',
+            status: 'spent',
             timestamp: serverTimestamp(),
             userId: user.uid,
             awardedPoints: -extraCost
@@ -565,10 +564,10 @@
               totalIssued: increment(winAmount - currentBet) // only count profit as issued
             });
             
-            // Record winnings
+            // Record winnings (Status: 'won')
             await addDoc(getPublicRef('submissions'), {
               description: `♠️ 21點：獲勝獎勵 (${msg})`,
-              status: 'approved', // shows as positive/income
+              status: 'won', // shows as positive/income
               timestamp: serverTimestamp(),
               userId: user.uid,
               awardedPoints: winAmount
@@ -665,7 +664,7 @@
           const isWin = Math.random() < winChance;
 
           if (isWin) {
-            // 中獎
+            // 中獎 (Status: redeemed, makes a coupon)
             await addDoc(getPublicRef('submissions'), {
               description: `🍟 抽獎中獎：現炸薯條一份`, 
               image: "https://images.unsplash.com/photo-1630384060421-a4323ceca04b?q=80&w=400&auto=format&fit=crop", 
@@ -676,10 +675,10 @@
             });
             alert("🎉 太神啦！恭喜抽中薯條一份！請至「兌換」查看券");
           } else {
-            // 沒中 (也要留紀錄，避免帳目不合)
+            // 沒中 (Status: spent, only history, no coupon)
             await addDoc(getPublicRef('submissions'), {
               description: `💨 抽獎槓龜：再接再厲`, 
-              status: 'redeemed', // 視為已消費
+              status: 'spent', 
               timestamp: serverTimestamp(), 
               userId: user.uid, 
               awardedPoints: -cost
@@ -721,6 +720,7 @@
             totalPoints: increment(-reward.cost),
             totalRedeemed: increment(reward.cost)
           });
+          // Status: redeemed (creates a coupon)
           await addDoc(getPublicRef('submissions'), {
             description: `🎁 已兌換：${reward.name}`, image: reward.image, status: 'redeemed', timestamp: serverTimestamp(), userId: user.uid, awardedPoints: -reward.cost
           });
@@ -959,6 +959,31 @@
                     )}
                   </div>
                 </div>
+
+                {/* ♠️ 新增：二十一點專屬對戰紀錄 */}
+                <div className="w-full space-y-3">
+                  <h3 className="text-[10px] font-bold text-[#666] uppercase tracking-[0.2em] px-2 flex items-center gap-2"><Icon name="History" size={14} className="text-[#d4af37]"/> 近期對戰紀錄</h3>
+                  <div className="bg-[#1e1e1e] border border-[#333] overflow-hidden max-h-48 overflow-y-auto no-scrollbar">
+                    {submissions.filter(s => s.description && s.description.includes('21點')).length === 0 ? (
+                      <p className="text-center text-[11px] text-[#444] py-6 italic">尚無對戰紀錄</p>
+                    ) : (
+                      <div className="flex flex-col">
+                        {submissions.filter(s => s.description && s.description.includes('21點')).map(item => (
+                          <div key={item.id} className="log-item p-3 flex justify-between items-center">
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-[9px] text-[#666] font-bold uppercase">{item.timestamp?.toDate ? item.timestamp.toDate().toLocaleTimeString() : 'Just now'}</span>
+                              <p className="text-xs font-medium text-[#ccc] truncate pr-2">{item.description}</p>
+                            </div>
+                            <div className={`text-sm font-bold shrink-0 ${item.awardedPoints > 0 ? 'text-[#2ed573]' : 'text-[#ff4757]'}`}>
+                              {item.awardedPoints > 0 ? `+${item.awardedPoints}` : item.awardedPoints}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <div className="text-[10px] text-[#666] mt-4 text-center max-w-xs leading-relaxed">
                   <p>21點規則：</p>
                   <p>A 可當 1 或 11，J/Q/K 為 10 點</p>
@@ -1029,6 +1054,7 @@
                 <div className="space-y-4">
                     <h3 className="text-[10px] font-bold text-[#666] uppercase tracking-[0.2em] px-2 flex items-center gap-2"><Icon name="Ticket" size={14} className="text-[#d4af37]"/> 我的兌換券</h3>
                     <div className="flex flex-col gap-3">
+                      {/* Only show 'redeemed' or 'verified' status here. Ignore 'spent' and 'won' */}
                       {submissions.filter(s => s.status === 'redeemed' || s.status === 'verified').length === 0 && <p className="text-center text-[11px] text-[#444] py-6 border border-dashed border-[#333] italic">尚未擁有兌換券</p>}
                       {submissions.filter(s => s.status === 'redeemed' || s.status === 'verified').map(coupon => (
                         <div key={coupon.id} className={`coupon-card p-4 flex items-center gap-4 ${coupon.status === 'verified' ? 'coupon-used' : ''}`}>
@@ -1049,11 +1075,12 @@
                 <div className="space-y-4">
                   <h3 className="text-[10px] font-bold text-[#666] uppercase tracking-[0.2em] px-2 flex items-center gap-2"><Icon name="History" size={14} className="text-[#d4af37]"/> 交易紀錄</h3>
                   <div className="bg-[#1e1e1e] border border-[#333] overflow-hidden">
-                    {submissions.filter(s => s.status === 'approved' || s.status === 'deducted' || s.status === 'redeemed').length === 0 ? (
+                    {/* Show all completed transactions: approved, deducted, redeemed, spent, won */}
+                    {submissions.filter(s => ['approved', 'deducted', 'redeemed', 'spent', 'won', 'verified'].includes(s.status)).length === 0 ? (
                       <p className="text-center text-[11px] text-[#444] py-8 italic">尚無交易紀錄</p>
                     ) : (
                       <div className="flex flex-col">
-                        {submissions.filter(s => s.status === 'approved' || s.status === 'deducted' || s.status === 'redeemed').map(item => (
+                        {submissions.filter(s => ['approved', 'deducted', 'redeemed', 'spent', 'won', 'verified'].includes(s.status)).map(item => (
                           <div key={item.id} className="log-item p-4 flex justify-between items-center">
                             <div className="flex flex-col min-w-0">
                               <span className="text-[9px] text-[#666] font-bold uppercase">{item.timestamp ? new Date(item.timestamp.seconds * 1000).toLocaleDateString() : 'Just now'}</span>
