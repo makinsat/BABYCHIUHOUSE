@@ -385,7 +385,7 @@
       const [bjBet, setBjBet] = useState(0.25);
 
       // Mines State
-      const [minesCount, setMinesCount] = useState(2); // 3x3 預設地雷數改為 2 (因為禁止 1)
+      const [minesCount, setMinesCount] = useState(1); // 預設地雷數改為 1
       const [minesGrid, setMinesGrid] = useState([]); // {id, isMine, revealed}
       const [minesStatus, setMinesStatus] = useState('idle'); // idle, playing, exploded, cashed_out
       const [minesMultiplier, setMinesMultiplier] = useState(1);
@@ -495,11 +495,6 @@
         const cost = 5;
         if (points < cost) return alert("點數不足 5 P！");
         
-        // Validation for House Edge: 3x3 至少 2 雷
-        if (settings.minesGridSize === 3 && minesCount < 2) {
-            return alert("3x3 模式下，為了平衡難度，至少需要 2 顆地雷！");
-        }
-        
         try {
           // Deduct cost
           await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'total'), { 
@@ -549,7 +544,31 @@
         }
         if (minesGrid[index].revealed) return;
 
-        const newGrid = [...minesGrid];
+        let newGrid = minesGrid.map(tile => ({...tile}));
+
+        // Rigging for 3x3 & 1 Mine
+        if (settings.minesGridSize === 3 && minesCount === 1) {
+            // 40% Win Rate (Survival), 60% Loss Rate
+            const isLoss = Math.random() > 0.4;
+            
+            if (isLoss) {
+                // Force Loss: Ensure clicked tile is a mine, others are not
+                newGrid.forEach(t => t.isMine = false);
+                newGrid[index].isMine = true;
+            } else {
+                // Force Win: Ensure clicked tile is NOT a mine
+                if (newGrid[index].isMine) {
+                    newGrid[index].isMine = false;
+                    // Move mine to another unrevealed spot
+                    const candidates = newGrid.filter(t => t.id !== index && !t.revealed);
+                    if (candidates.length > 0) {
+                        const randomSpot = candidates[Math.floor(Math.random() * candidates.length)];
+                        randomSpot.isMine = true;
+                    }
+                }
+            }
+        }
+
         newGrid[index].revealed = true;
 
         if (newGrid[index].isMine) {
@@ -1160,7 +1179,6 @@
                               {/* 根據格子大小動態調整地雷選項，避免地雷數 > 格子數 */}
                               {[1, 2, 3, 5, 8]
                                 .filter(n => n < (settings.minesGridSize * settings.minesGridSize))
-                                .filter(n => settings.minesGridSize === 3 ? n >= 2 : true) // 3x3 至少 2 雷
                                 .map(num => (
                                 <button 
                                   key={num} 
