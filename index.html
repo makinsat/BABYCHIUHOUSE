@@ -137,78 +137,62 @@
     .card .val-top { align-self: flex-start; line-height: 1; }
     .card .val-bottom { align-self: flex-end; transform: rotate(180deg); line-height: 1; }
 
-    /* 轉盤樣式 - 優化版 */
-    .wheel-container {
-      position: relative;
-      width: 280px; /* 稍微加大 */
-      height: 280px;
+    /* Mines 遊戲樣式 - 全面修復 */
+    .mines-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
       margin: 0 auto;
-    }
-    .wheel {
       width: 100%;
-      height: 100%;
-      border-radius: 50%;
-      border: 8px solid #d4af37; /* 加粗邊框 */
+      max-width: 320px;
+    }
+    .mine-tile {
+      width: 100%;
+      padding-bottom: 100%; /* 1:1 Aspect Ratio Hack - 確保正方形 */
+      background: #3a3a3a; /* 亮一點的灰色，確保可見 */
+      border-radius: 6px;
+      cursor: pointer;
       position: relative;
-      /* 延長動畫時間至 10s，使用更自然的貝茲曲線 */
-      transition: transform 10s cubic-bezier(0.25, 0.1, 0.25, 1);
-      /* 高對比色塊：金、黑、白交替 */
-      background: conic-gradient(
-        #d4af37 0% 16.66%,   /* x5 GOLD */
-        #1e1e1e 16.66% 33.33%, /* x2 BLACK */
-        #e5e5e5 33.33% 50%,   /* x1 WHITE */
-        #1e1e1e 50% 66.66%,   /* x0.5 BLACK */
-        #e5e5e5 66.66% 83.33%, /* x0.25 WHITE */
-        #000000 83.33% 100%   /* x0 DARK BLACK */
-      );
-      box-shadow: 0 0 20px rgba(212, 175, 55, 0.4);
+      border-bottom: 4px solid #222; /* 立體感 */
+      transition: transform 0.1s ease, background 0.2s, border-color 0.2s;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
     }
-    /* 文字標籤定位 - 修正 */
-    .wheel-label {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform-origin: center; /* 關鍵：從中心旋轉 */
-      font-weight: 800;
-      font-size: 18px; /* 加大字體 */
-      white-space: nowrap;
-      pointer-events: none;
-      /* 文字陰影增強可讀性 */
-      text-shadow: 0 1px 3px rgba(0,0,0,0.8); 
+    .mine-tile:active { 
+      transform: translateY(2px); 
+      border-bottom-width: 2px;
+      box-shadow: 0 2px 3px rgba(0,0,0,0.3);
     }
-    /* 針對不同背景色的文字顏色調整 */
-    .label-on-dark { color: #d4af37; }
-    .label-on-light { color: #000; text-shadow: none; }
-    .label-on-gold { color: #000; text-shadow: none; }
-
-    /* 指針 */
-    .wheel-arrow {
-      position: absolute;
-      top: -18px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 0; 
-      height: 0; 
-      border-left: 15px solid transparent;
-      border-right: 15px solid transparent;
-      border-top: 30px solid #ef4444; /* 更明顯的紅色 */
-      z-index: 20;
-      filter: drop-shadow(0 4px 4px rgba(0,0,0,0.5));
+    .mine-tile.revealed { 
+      background: #1a1a1a; 
+      border-bottom: 2px solid #000; 
+      cursor: default; 
+      transform: translateY(2px);
+      box-shadow: none;
     }
-    .wheel-center {
+    .mine-tile.gem { 
+      background: #112e1e; 
+      border-bottom-color: #0b1f13; 
+      border-color: #2ecc71; /* 綠色邊框 */
+      border-width: 1px;
+    }
+    .mine-tile.mine { 
+      background: #3e1212; 
+      border-bottom-color: #2a0b0b; 
+      border-color: #e74c3c; /* 紅色邊框 */
+      border-width: 1px;
+    }
+    .mine-tile-inner {
       position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      width: 50px; height: 50px;
-      background: #d4af37;
-      border: 4px solid #111;
-      border-radius: 50%;
-      z-index: 10;
+      top: 0; left: 0; right: 0; bottom: 0;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 0 15px rgba(0,0,0,0.6);
     }
+    .mine-tile-inner .content { 
+      font-size: 24px; 
+      animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+    }
+    @keyframes popIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
   </style>
 </head>
 <body>
@@ -282,8 +266,8 @@
         Book: (<Fragment><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></Fragment>),
         Minus: <line x1="5" y1="12" x2="19" y2="12"/>,
         Cards: (<Fragment><rect x="6" y="2" width="12" height="16" rx="2" ry="2" /><line x1="9" y1="2" x2="9" y2="18" /><path d="M15 18l-3 3l-3 -3" /></Fragment>),
-        Wheel: (<Fragment><circle cx="12" cy="12" r="10"/><path d="M12 12 12 2"/><path d="M12 12 20.66 7"/><path d="M12 12 20.66 17"/><path d="M12 12 12 22"/><path d="M12 12 3.34 17"/><path d="M12 12 3.34 7"/></Fragment>),
-        Star: (<Fragment><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></Fragment>)
+        Bomb: (<Fragment><circle cx="12" cy="12" r="6"/><path d="M11 2h2"/><path d="M12 2v4"/><path d="m7 7 2 2"/><path d="m15 7 2 2"/></Fragment>),
+        Diamond: (<Fragment><path d="M6 3h12l4 6-10 13L2 9Z"/></Fragment>)
       };
       return (
         <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -349,7 +333,7 @@
     function App() {
       const [user, setUser] = useState(null);
       const [activeTab, setActiveTab] = useState('dashboard'); // 預設首頁
-      const [activeGame, setActiveGame] = useState(null); // 'blackjack' or 'wheel'
+      const [activeGame, setActiveGame] = useState(null); // 'blackjack' or 'mines'
       const [isAdmin, setIsAdmin] = useState(false);
       const [points, setPoints] = useState(0);
       const [stats, setStats] = useState({ totalIssued: 0, totalRedeemed: 0 });
@@ -392,10 +376,12 @@
       const [bjMessage, setBjMessage] = useState('');
       const [bjBet, setBjBet] = useState(0.25);
 
-      // Wheel State
-      const [wheelRotation, setWheelRotation] = useState(0);
-      const [isSpinning, setIsSpinning] = useState(false);
-      const [wheelResult, setWheelResult] = useState('');
+      // Mines State
+      const [minesCount, setMinesCount] = useState(3);
+      const [minesGrid, setMinesGrid] = useState([]); // {id, isMine, revealed}
+      const [minesStatus, setMinesStatus] = useState('idle'); // idle, playing, exploded, cashed_out
+      const [minesMultiplier, setMinesMultiplier] = useState(1);
+      const [minesPotentialWin, setMinesPotentialWin] = useState(0);
 
       const getPublicRef = (name) => collection(db, 'artifacts', appId, 'public', 'data', name);
 
@@ -492,16 +478,12 @@
         } else { alert('密碼錯誤 🔒'); }
       };
 
-      // --- Wheel Game Functions ---
-      const spinWheel = async () => {
-        const cost = 0.25;
-        if (points < cost) return alert("點數不足 0.25！");
-        if (isSpinning) return;
-
+      // --- Mines Game Functions ---
+      const startMines = async () => {
+        const cost = 5;
+        if (points < cost) return alert("點數不足 5 P！");
+        
         try {
-          setIsSpinning(true);
-          setWheelResult('');
-          
           // Deduct cost
           await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'total'), { 
             totalPoints: increment(-cost),
@@ -509,79 +491,87 @@
           });
           
           await addDoc(getPublicRef('submissions'), {
-            description: `🎡 轉盤：入場費`,
+            description: `💣 Mines：入場費`,
             status: 'spent', 
             timestamp: serverTimestamp(),
             userId: user.uid,
             awardedPoints: -cost
           });
 
-          // Wheel Configuration - 順時鐘排列 (對應 CSS conic-gradient)
-          const segments = [
-            { label: 'x5', multiplier: 5, weight: 5, index: 0 },
-            { label: 'x2', multiplier: 2, weight: 10, index: 1 },
-            { label: 'x1', multiplier: 1, weight: 20, index: 2 },
-            { label: 'x0.5', multiplier: 0.5, weight: 25, index: 3 },
-            { label: 'x0.25', multiplier: 0.25, weight: 15, index: 4 },
-            { label: 'x0', multiplier: 0, weight: 25, index: 5 }
-          ];
-          
-          // Weighted Random
-          let totalWeight = segments.reduce((acc, s) => acc + s.weight, 0);
-          let random = Math.random() * totalWeight;
-          let selected = null;
-          let accumulatedWeight = 0;
-
-          for (let i = 0; i < segments.length; i++) {
-            accumulatedWeight += segments[i].weight;
-            if (random <= accumulatedWeight) {
-              selected = segments[i];
-              break;
+          // Create Grid (25 tiles)
+          let grid = Array(25).fill(null).map((_, i) => ({ id: i, isMine: false, revealed: false }));
+          let minesPlaced = 0;
+          while (minesPlaced < minesCount) {
+            let idx = Math.floor(Math.random() * 25);
+            if (!grid[idx].isMine) {
+              grid[idx].isMine = true;
+              minesPlaced++;
             }
           }
 
-          // Calculate rotation
-          const segmentAngle = 60;
-          const targetAngle = 360 - (selected.index * segmentAngle + 30);
-          
-          // Add extra spins (Updated to 10 seconds duration)
-          const baseRotation = 3600 * 2; // more spins
-          const finalRotation = baseRotation + targetAngle;
+          setMinesGrid(grid);
+          setMinesStatus('playing');
+          setMinesMultiplier(1.0);
+          setMinesPotentialWin(5);
 
-          setWheelRotation(finalRotation);
+        } catch (e) { alert("遊戲錯誤"); }
+      };
 
-          setTimeout(async () => {
-            setIsSpinning(false);
-            const winAmount = cost * selected.multiplier;
-            let msg = '';
-            
-            if (selected.multiplier > 1) msg = `大獎！x${selected.multiplier} 🎉`;
-            else if (selected.multiplier === 1) msg = `保本 x1 😅`;
-            else if (selected.multiplier > 0) msg = `拿回部分 x${selected.multiplier} 💸`;
-            else msg = `槓龜 x0 💨`;
-
-            setWheelResult(msg);
-
-            if (winAmount > 0) {
-               await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'total'), { 
-                totalPoints: increment(winAmount),
-                totalIssued: increment(Math.max(0, winAmount - cost))
-              });
-              
-              await addDoc(getPublicRef('submissions'), {
-                description: `🎡 轉盤：${msg}`,
-                status: 'won', 
-                timestamp: serverTimestamp(),
-                userId: user.uid,
-                awardedPoints: winAmount
-              });
-            }
-          }, 10000); // 10 seconds animation
-
-        } catch (e) { 
-          setIsSpinning(false); 
-          alert("遊戲錯誤"); 
+      const clickTile = (index) => {
+        if (minesStatus !== 'playing') {
+          // 如果還沒開始，提示用戶
+          if(minesStatus === 'idle') alert('請先點擊下方的「開始遊戲」！');
+          return;
         }
+        if (minesGrid[index].revealed) return;
+
+        const newGrid = [...minesGrid];
+        newGrid[index].revealed = true;
+
+        if (newGrid[index].isMine) {
+          // BOOM
+          setMinesStatus('exploded');
+          newGrid.forEach(t => t.revealed = true);
+          setMinesGrid(newGrid);
+        } else {
+          // Gem
+          setMinesGrid(newGrid);
+          const revealedCount = newGrid.filter(t => t.revealed && !t.isMine).length;
+          const remainingTiles = 25 - (revealedCount - 1); 
+          const remainingSafe = 25 - minesCount - (revealedCount - 1);
+          
+          let nextMult = minesMultiplier * (remainingTiles / remainingSafe);
+          
+          setMinesMultiplier(nextMult);
+          setMinesPotentialWin(5 * nextMult);
+        }
+      };
+
+      const cashOutMines = async () => {
+        if (minesStatus !== 'playing') return;
+        
+        try {
+          const winAmount = minesPotentialWin;
+          setMinesStatus('cashed_out');
+          
+          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'total'), { 
+            totalPoints: increment(winAmount),
+            totalIssued: increment(Math.max(0, winAmount - 5))
+          });
+          
+          await addDoc(getPublicRef('submissions'), {
+            description: `💣 Mines：獲勝 (${winAmount.toFixed(2)})`,
+            status: 'won', 
+            timestamp: serverTimestamp(),
+            userId: user.uid,
+            awardedPoints: winAmount
+          });
+          
+          const newGrid = [...minesGrid];
+          newGrid.forEach(t => t.revealed = true);
+          setMinesGrid(newGrid);
+
+        } catch (e) { alert("領取失敗"); }
       };
 
       // --- Blackjack Functions ---
@@ -596,10 +586,10 @@
             totalRedeemed: increment(cost)
           });
           
-          // Record transaction (Status: 'spent' to avoid showing as coupon)
+          // Record transaction
           await addDoc(getPublicRef('submissions'), {
             description: `♠️ 21點：入場費`,
-            status: 'spent', // shows as negative/spending but NOT coupon
+            status: 'spent', 
             timestamp: serverTimestamp(),
             userId: user.uid,
             awardedPoints: -cost
@@ -616,7 +606,6 @@
           setBjGameState('playing');
           setBjMessage('');
 
-          // Check natural blackjack immediately
           if (calculateHand(pHand) === 21) {
              finishBlackjack(pHand, dHand, cost, true);
           }
@@ -634,9 +623,7 @@
         if (calculateHand(newHand) > 21) {
           setBjGameState('gameOver');
           setBjMessage('爆牌了！(Bust) 💸');
-          // No refund, already deducted
         } else if (newHand.length === 5) {
-          // 5-Card Charlie logic
           finishBlackjack(newHand, bjDealerHand, bjBet, false, true); 
         }
       };
@@ -645,7 +632,6 @@
         let currentDeck = [...bjDeck];
         let currentDHand = [...bjDealerHand];
         
-        // Dealer AI: Hit until 17
         while (calculateHand(currentDHand) < 17) {
           currentDHand.push(currentDeck.pop());
         }
@@ -665,7 +651,6 @@
             totalRedeemed: increment(extraCost)
           });
           
-          // Record transaction (Status: 'spent')
           await addDoc(getPublicRef('submissions'), {
             description: `♠️ 21點：雙倍下注`,
             status: 'spent',
@@ -674,14 +659,11 @@
             awardedPoints: -extraCost
           });
           
-          // Deal one card then stand
           const newDeck = [...bjDeck];
           const card = newDeck.pop();
           const newHand = [...bjPlayerHand, card];
           
-          // Dealer logic immediately
           let currentDHand = [...bjDealerHand];
-          // Check player bust first
           if (calculateHand(newHand) > 21) {
              setBjPlayerHand(newHand);
              setBjBet(bjBet + extraCost);
@@ -734,13 +716,12 @@
           try {
             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'total'), { 
               totalPoints: increment(winAmount),
-              totalIssued: increment(winAmount - currentBet) // only count profit as issued
+              totalIssued: increment(winAmount - currentBet)
             });
             
-            // Record winnings (Status: 'won')
             await addDoc(getPublicRef('submissions'), {
               description: `♠️ 21點：獲勝獎勵 (${msg})`,
-              status: 'won', // shows as positive/income
+              status: 'won',
               timestamp: serverTimestamp(),
               userId: user.uid,
               awardedPoints: winAmount
@@ -792,14 +773,14 @@
       const handleApprove = async (sub, customPoints) => {
         if (!customPoints || customPoints <= 0) return alert("請輸入有效的點數");
         setIsProcessing(true);
-        const pts = parseFloat(customPoints); // Changed to parseFloat to support decimals
+        const pts = parseFloat(customPoints); 
         try {
           await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'submissions', sub.id), { status: 'approved', awardedPoints: pts });
           await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'total'), { 
             totalPoints: increment(pts),
             totalIssued: increment(pts)
           });
-          setApprovalPoints(prev => ({...prev, [sub.id]: ''})); // 清空輸入框
+          setApprovalPoints(prev => ({...prev, [sub.id]: ''})); 
           alert(`批准成功！已發放 ${pts} 點`);
         } catch(e) { alert("失敗"); } finally { setIsProcessing(false); }
       };
@@ -826,18 +807,15 @@
         if (!confirm(`確定花費 ${cost} 點抽薯條嗎？`)) return;
 
         try {
-          // 1. 扣點
           await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'total'), { 
             totalPoints: increment(-cost),
             totalRedeemed: increment(cost)
           });
           
-          // 2. 機率判斷
-          const winChance = settings.lotteryProb || 0.05; // 預設 10%
+          const winChance = settings.lotteryProb || 0.05;
           const isWin = Math.random() < winChance;
 
           if (isWin) {
-            // 中獎 (Status: redeemed, makes a coupon)
             await addDoc(getPublicRef('submissions'), {
               description: `🍟 抽獎中獎：現炸薯條一份`, 
               image: "https://images.unsplash.com/photo-1630384060421-a4323ceca04b?q=80&w=400&auto=format&fit=crop", 
@@ -848,7 +826,6 @@
             });
             alert("🎉 太神啦！恭喜抽中薯條一份！請至「兌換」查看券");
           } else {
-            // 沒中 (Status: spent, only history, no coupon)
             await addDoc(getPublicRef('submissions'), {
               description: `💨 抽獎槓龜：再接再厲`, 
               status: 'spent', 
@@ -893,7 +870,6 @@
             totalPoints: increment(-reward.cost),
             totalRedeemed: increment(reward.cost)
           });
-          // Status: redeemed (creates a coupon)
           await addDoc(getPublicRef('submissions'), {
             description: `🎁 已兌換：${reward.name}`, image: reward.image, status: 'redeemed', timestamp: serverTimestamp(), userId: user.uid, awardedPoints: -reward.cost
           });
@@ -910,6 +886,9 @@
 
       const unreadCountReal = user ? notifications.filter(n => !n.readBy?.includes(user.uid)).length : 0;
 
+      // Placeholder grid creation
+      const placeholderGrid = Array.from({ length: 25 });
+
       if (loading) return null;
 
       return (
@@ -923,19 +902,16 @@
                 <h1 className="text-xl font-bold tracking-widest uppercase italic gold-text-gradient">VIP CLUB</h1>
               </div>
               <div className="flex items-center gap-2">
-                {/* 鈴鐺改為開啟彈窗 */}
                 <button onClick={() => setShowNotifModal(true)} className="relative p-2 bg-white/5 transition-all hover:bg-white/10 rounded-none">
                   <Icon name="Bell" size={18} className="text-[#a3a3a3]" />
                   {unreadCountReal > 0 && <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[8px] font-black w-4 h-4 flex items-center justify-center border border-[#121212] rounded-none">!</span>}
                 </button>
-                {/* 管理員登出/鎖定按鈕 (備用，但現在主要靠底部導航) */}
                 <button onClick={() => isAdmin ? setIsAdmin(false) : setShowAdminLogin(true)} className="p-2 bg-white/5 hover:bg-white/10 rounded-none">
                   <Icon name={isAdmin ? "LogOut" : "Lock"} size={18} className="text-[#a3a3a3]" />
                 </button>
               </div>
             </div>
             
-            {/* Header 點數顯示 (只在非 Dashboard 頁面顯示，因為 Dashboard 有大卡片) */}
             {activeTab !== 'dashboard' && (
               <div className="flex justify-center mb-6">
                 <div className="glass-card px-8 py-3 flex items-center gap-4 shadow-[0_0_20px_rgba(212,175,55,0.2)]">
@@ -950,7 +926,7 @@
             </div>
           </div>
 
-          {/* Admin Login Modal (置中顯示) */}
+          {/* Admin Login Modal */}
           {showAdminLogin && !isAdmin && (
             <div className="absolute inset-0 bg-black/80 z-[60] flex items-center justify-center animate-in backdrop-blur-sm">
               <div className="bg-[#1e1e1e] p-6 shadow-2xl w-72 border border-[#333] relative">
@@ -1031,7 +1007,7 @@
                     <Icon name="Cards" size={28} className="text-[#666] group-hover:text-[#d4af37] transition-colors" />
                     <div>
                       <h3 className="font-bold text-[#e5e5e5] text-sm">遊戲大廳</h3>
-                      <p className="text-[10px] text-[#666] mt-1">轉盤與21點</p>
+                      <p className="text-[10px] text-[#666] mt-1">Mines 與 21點</p>
                     </div>
                   </div>
                 </div>
@@ -1076,62 +1052,99 @@
                       </div>
                     </div>
 
-                    <div onClick={() => setActiveGame('wheel')} className="bg-[#1e1e1e] border border-[#333] p-6 flex items-center justify-between cursor-pointer hover:border-[#f1c40f] transition-all">
+                    <div onClick={() => setActiveGame('mines')} className="bg-[#1e1e1e] border border-[#333] p-6 flex items-center justify-between cursor-pointer hover:border-[#d4af37] transition-all">
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 bg-[#222] flex items-center justify-center rounded-full border border-[#333]">
-                          <Icon name="Wheel" size={24} className="text-[#f1c40f]"/>
+                          <Icon name="Bomb" size={24} className="text-red-500"/>
                         </div>
                         <div>
-                          <h3 className="font-bold text-[#e5e5e5]">幸運轉盤</h3>
-                          <p className="text-[10px] text-[#666]">最高 5 倍獎勵，試試手氣</p>
+                          <h3 className="font-bold text-[#e5e5e5]">Mines (掃雷)</h3>
+                          <p className="text-[10px] text-[#666]">避開地雷，累積倍率</p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-xs font-bold text-[#f1c40f]">0.25 P</p>
+                        <p className="text-xs font-bold text-[#d4af37]">5.00 P</p>
                         <p className="text-[9px] text-[#444]">ENTRY</p>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {activeGame === 'wheel' && (
+                {activeGame === 'mines' && (
                   <div className="w-full flex flex-col items-center gap-6 animate-in">
-                    <button onClick={() => setActiveGame(null)} className="self-start text-[#666] text-xs hover:text-white mb-2">← 返回大廳</button>
+                    <button onClick={() => { if(minesStatus === 'playing') return; setActiveGame(null); }} className="self-start text-[#666] text-xs hover:text-white mb-2">← 返回大廳</button>
                     
-                    <div className="wheel-container">
-                      <div className="wheel-arrow"></div>
-                      <div className="wheel" style={{ transform: `rotate(${wheelRotation}deg)` }}>
-                        {/* 扇形與文字標籤 - 使用精準定位將文字放入格子中央 */}
-                        {/* 0: 0-60 x5 (Gold) */}
-                        <div className="wheel-label label-on-gold" style={{ transform: 'translate(-50%, -50%) rotate(30deg) translate(80px) rotate(90deg)' }}>x5</div>
-                        {/* 1: 60-120 x2 (Black) */}
-                        <div className="wheel-label label-on-dark" style={{ transform: 'translate(-50%, -50%) rotate(90deg) translate(80px) rotate(90deg)' }}>x2</div>
-                        {/* 2: 120-180 x1 (White) */}
-                        <div className="wheel-label label-on-light" style={{ transform: 'translate(-50%, -50%) rotate(150deg) translate(80px) rotate(90deg)' }}>x1</div>
-                        {/* 3: 180-240 x0.5 (Black) */}
-                        <div className="wheel-label label-on-dark" style={{ transform: 'translate(-50%, -50%) rotate(210deg) translate(80px) rotate(90deg)' }}>x0.5</div>
-                        {/* 4: 240-300 x0.25 (White) */}
-                        <div className="wheel-label label-on-light" style={{ transform: 'translate(-50%, -50%) rotate(270deg) translate(80px) rotate(90deg)' }}>x0.25</div>
-                        {/* 5: 300-360 x0 (Black) */}
-                        <div className="wheel-label label-on-dark" style={{ transform: 'translate(-50%, -50%) rotate(330deg) translate(80px) rotate(90deg)' }}>x0</div>
+                    <div className="w-full bg-[#1e1e1e] p-6 border border-[#333] shadow-lg flex flex-col gap-4">
+                      <div className="flex justify-between items-center border-b border-[#333] pb-3">
+                        <h2 className="text-lg font-bold text-[#d4af37] flex items-center gap-2"><Icon name="Bomb" size={20}/> MINES</h2>
+                        <div className="text-right">
+                          <span className="text-xs text-[#666] block">Bet: 5.00</span>
+                          {minesStatus === 'playing' && <span className="text-sm font-bold text-[#d4af37]">Profit: {minesPotentialWin.toFixed(2)}</span>}
+                        </div>
                       </div>
-                      <div className="wheel-center">
-                        <span className="text-[10px] font-bold">VIP</span>
+
+                      {/* Mines Controls */}
+                      {minesStatus === 'idle' || minesStatus === 'cashed_out' || minesStatus === 'exploded' ? (
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs text-[#888]">地雷數量: {minesCount}</span>
+                            <div className="flex gap-1">
+                              {[1, 3, 5, 10, 24].map(num => (
+                                <button 
+                                  key={num} 
+                                  onClick={() => setMinesCount(num)}
+                                  className={`px-3 py-1 text-[10px] border ${minesCount === num ? 'bg-[#d4af37] text-black border-[#d4af37]' : 'bg-transparent text-[#666] border-[#333]'}`}
+                                >
+                                  {num}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          
+                          <button onClick={startMines} disabled={points < 5} className="btn-action w-full py-4 text-sm font-bold tracking-widest shadow-[0_0_30px_rgba(241,196,15,0.3)]">
+                            開始遊戲 (-5.00 P)
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="text-center">
+                          <p className="text-xs text-[#e5e5e5] mb-2">Current Multiplier: <span className="text-[#d4af37] font-bold">x{minesMultiplier.toFixed(2)}</span></p>
+                          <button 
+                            onClick={cashOutMines} 
+                            disabled={minesMultiplier === 1.0} 
+                            className={`w-full py-3 text-xs font-bold transition-all ${minesMultiplier > 1 ? 'btn-action' : 'bg-[#333] text-[#666] cursor-not-allowed'}`}
+                          >
+                            收手 (Cashout {minesPotentialWin.toFixed(2)})
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Mines Grid */}
+                      <div className="mines-grid mt-4">
+                        {minesGrid.length > 0 ? minesGrid.map((tile, i) => (
+                          <div 
+                            key={i} 
+                            onClick={() => clickTile(i)}
+                            className={`mine-tile ${tile.revealed ? (tile.isMine ? 'mine' : 'gem') : ''} ${!tile.revealed && minesStatus === 'playing' ? 'hover:bg-[#444]' : ''}`}
+                          >
+                            {tile.revealed && (
+                              <div className="mine-tile-inner">
+                                <div className="content">
+                                  {tile.isMine ? <Icon name="Bomb" size={24} className="text-[#e74c3c]" /> : <Icon name="Diamond" size={24} className="text-[#2ecc71]" />}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )) : (
+                          // Placeholder grid (visible when game hasn't started or state cleared)
+                          placeholderGrid.map((_, i) => (
+                            <div key={i} className="mine-tile opacity-30 cursor-not-allowed" onClick={() => alert('請點擊上方的「開始遊戲」按鈕！')}></div>
+                          ))
+                        )}
                       </div>
-                    </div>
+                      
+                      {minesStatus === 'exploded' && <p className="text-center text-red-500 font-bold text-sm mt-2 animate-bounce">BOOM! 遊戲結束</p>}
+                      {minesStatus === 'cashed_out' && <p className="text-center text-[#2ecc71] font-bold text-sm mt-2">恭喜贏取 {minesPotentialWin.toFixed(2)} P!</p>}
 
-                    <div className="text-center h-8">
-                      {wheelResult && <p className="text-[#d4af37] font-bold text-lg animate-bounce">{wheelResult}</p>}
-                    </div>
-
-                    <button onClick={spinWheel} disabled={isSpinning || points < 0.25} className="btn-action w-full py-4 text-sm font-bold tracking-widest shadow-[0_0_30px_rgba(241,196,15,0.3)]">
-                      {isSpinning ? '旋轉中...' : '開始旋轉 (-0.25 P)'}
-                    </button>
-
-                    <div className="text-[10px] text-[#666] text-center mt-4 border-t border-[#333] pt-4 w-full">
-                      <p>機率說明：</p>
-                      <p>x5 (5%), x2 (10%), x1 (20%)</p>
-                      <p>x0.5 (25%), x0.25 (15%), x0 (25%)</p>
                     </div>
                   </div>
                 )}
@@ -1223,11 +1236,11 @@
                   <div className="w-full space-y-3">
                     <h3 className="text-[10px] font-bold text-[#666] uppercase tracking-[0.2em] px-2 flex items-center gap-2"><Icon name="History" size={14} className="text-[#d4af37]"/> 遊戲紀錄</h3>
                     <div className="bg-[#1e1e1e] border border-[#333] overflow-hidden max-h-48 overflow-y-auto no-scrollbar">
-                      {submissions.filter(s => s.description && (s.description.includes('21點') || s.description.includes('轉盤'))).length === 0 ? (
+                      {submissions.filter(s => s.description && (s.description.includes('21點') || s.description.includes('Mines'))).length === 0 ? (
                         <p className="text-center text-[11px] text-[#444] py-6 italic">尚無對戰紀錄</p>
                       ) : (
                         <div className="flex flex-col">
-                          {submissions.filter(s => s.description && (s.description.includes('21點') || s.description.includes('轉盤'))).map(item => (
+                          {submissions.filter(s => s.description && (s.description.includes('21點') || s.description.includes('Mines'))).map(item => (
                             <div key={item.id} className="log-item p-3 flex justify-between items-center">
                               <div className="flex flex-col min-w-0">
                                 <span className="text-[9px] text-[#666] font-bold uppercase">{item.timestamp?.toDate ? item.timestamp.toDate().toLocaleTimeString() : 'Just now'}</span>
