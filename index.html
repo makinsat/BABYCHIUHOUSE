@@ -422,6 +422,15 @@
             totalPoints: increment(-cost),
             totalRedeemed: increment(cost)
           });
+          
+          // Record transaction
+          await addDoc(getPublicRef('submissions'), {
+            description: `♠️ 21點：入場費`,
+            status: 'redeemed', // shows as negative/spending
+            timestamp: serverTimestamp(),
+            userId: user.uid,
+            awardedPoints: -cost
+          });
 
           const newDeck = createDeck();
           const pHand = [newDeck.pop(), newDeck.pop()];
@@ -454,6 +463,9 @@
           setBjGameState('gameOver');
           setBjMessage('爆牌了！(Bust) 💸');
           // No refund, already deducted
+        } else if (newHand.length === 5) {
+          // 5-Card Charlie logic
+          finishBlackjack(newHand, bjDealerHand, bjBet, false, true); 
         }
       };
 
@@ -479,6 +491,15 @@
            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'total'), { 
             totalPoints: increment(-extraCost),
             totalRedeemed: increment(extraCost)
+          });
+          
+          // Record transaction
+          await addDoc(getPublicRef('submissions'), {
+            description: `♠️ 21點：雙倍下注`,
+            status: 'redeemed',
+            timestamp: serverTimestamp(),
+            userId: user.uid,
+            awardedPoints: -extraCost
           });
           
           // Deal one card then stand
@@ -510,7 +531,7 @@
         } catch(e) { alert("雙倍下注失敗"); }
       };
 
-      const finishBlackjack = async (pHand, dHand, currentBet, isNatural) => {
+      const finishBlackjack = async (pHand, dHand, currentBet, isNatural, isFiveCardCharlie = false) => {
         const pScore = calculateHand(pHand);
         const dScore = calculateHand(dHand);
         let winAmount = 0;
@@ -518,6 +539,9 @@
 
         if (pScore > 21) {
           msg = '爆牌了！你輸了 💸';
+        } else if (isFiveCardCharlie) {
+          msg = '過五關！你贏了！ 🎉';
+          winAmount = currentBet * 2;
         } else if (dScore > 21) {
           msg = '莊家爆牌！你贏了！ 🎉';
           winAmount = currentBet * 2;
@@ -539,6 +563,15 @@
             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'total'), { 
               totalPoints: increment(winAmount),
               totalIssued: increment(winAmount - currentBet) // only count profit as issued
+            });
+            
+            // Record winnings
+            await addDoc(getPublicRef('submissions'), {
+              description: `♠️ 21點：獲勝獎勵 (${msg})`,
+              status: 'approved', // shows as positive/income
+              timestamp: serverTimestamp(),
+              userId: user.uid,
+              awardedPoints: winAmount
             });
           } catch(e) { console.error(e); }
         }
@@ -931,6 +964,7 @@
                   <p>A 可當 1 或 11，J/Q/K 為 10 點</p>
                   <p>莊家小於 17 點必須補牌</p>
                   <p>獲勝賠率 1:1 (贏得 2 倍賭注)</p>
+                  <p>過五關 (5張不爆) 直接獲勝</p>
                 </div>
               </div>
             )}
