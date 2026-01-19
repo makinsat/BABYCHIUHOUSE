@@ -2,210 +2,325 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>應有盡有大超商 🛒</title>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>專屬 VIP 俱樂部 🖤</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
     <style>
-        /* 整體風格：乾淨、像一個真正的 APP */
-        body {
-            font-family: 'Noto Sans TC', sans-serif;
-            background-color: #f5f7fa; /* 淺灰背景，比較像商城 */
-            margin: 0;
-            padding: 0;
-            color: #333;
-            padding-bottom: 80px; /* 預留底部按鈕空間 */
+        :root {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-main: #e0e0e0;
+            --text-sub: #a0a0a0;
+            --accent: #ff4757; /* 質感紅 */
+            --accent-gradient: linear-gradient(135deg, #ff4757, #ff6b81);
+            --gold: #d4af37; /* 質感金 */
         }
 
-        /* 頂部點數卡片 */
-        .header {
-            background: linear-gradient(135deg, #FF6B6B, #EE5253);
-            color: white;
-            padding: 30px 20px 50px 20px;
-            border-bottom-left-radius: 30px;
-            border-bottom-right-radius: 30px;
-            box-shadow: 0 4px 15px rgba(238, 82, 83, 0.3);
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            padding-bottom: 80px; /* 避開底部導覽列 */
+            user-select: none; /* 防止手機長按選取 */
+        }
+
+        /* --- 頂部資訊卡 --- */
+        .header-card {
+            background: linear-gradient(180deg, rgba(30,30,30,1) 0%, rgba(18,18,18,0) 100%);
+            padding: 30px 20px 10px 20px;
             text-align: center;
         }
-        
-        .shop-name {
-            font-size: 1.2rem;
-            opacity: 0.9;
+
+        .user-title {
+            font-size: 0.9rem;
+            color: var(--gold);
+            letter-spacing: 2px;
+            text-transform: uppercase;
             margin-bottom: 10px;
         }
 
-        .points-container {
-            display: flex;
-            justify-content: center;
-            align-items: baseline;
-        }
-
-        .points {
-            font-size: 4rem;
+        .points-display {
+            font-size: 3.5rem;
             font-weight: 700;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
             line-height: 1;
         }
 
         .points-label {
-            font-size: 1rem;
-            margin-left: 5px;
-            font-weight: bold;
+            font-size: 0.9rem;
+            color: var(--text-sub);
+            margin-top: 5px;
         }
 
-        .status-badge {
-            background: rgba(255,255,255,0.2);
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            margin-top: 10px;
-            display: inline-block;
-        }
-
-        /* 商品列表區域 */
-        .container {
+        /* --- 頁面容器與切換邏輯 --- */
+        .page-section {
+            display: none; /* 預設隱藏所有頁面 */
             padding: 20px;
-            margin-top: -30px; /* 往上蓋住一點 header */
+            animation: fadeIn 0.3s ease;
+        }
+        .page-section.active {
+            display: block; /* 只有加了 active 的才顯示 */
         }
 
-        .section-title {
-            font-size: 1.1rem;
-            font-weight: bold;
-            margin-bottom: 15px;
-            color: #555;
-            padding-left: 10px;
-            border-left: 4px solid #FF6B6B;
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
-        .grid {
+        /* --- 1. 商城樣式 (Grid) --- */
+        .shop-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr; /* 兩欄排列 */
+            grid-template-columns: 1fr 1fr;
             gap: 15px;
         }
 
-        .card {
-            background: white;
-            border-radius: 15px;
-            padding: 15px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+        .item-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 20px;
             text-align: center;
+            border: 1px solid #333;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             transition: transform 0.2s;
         }
+        .item-card:active { transform: scale(0.95); }
+        
+        .item-icon { font-size: 2.5rem; margin-bottom: 10px; }
+        .item-name { font-weight: 500; font-size: 0.95rem; margin-bottom: 5px; }
+        .item-price { color: var(--gold); font-size: 0.85rem; font-weight: bold; }
 
-        .card:active {
-            transform: scale(0.98);
-        }
-
-        .card-icon {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-        }
-
-        .card-title {
-            font-size: 1rem;
-            font-weight: bold;
-            margin-bottom: 5px;
-            color: #2d3436;
-        }
-
-        .card-price {
-            color: #FF6B6B;
-            font-weight: bold;
-            font-size: 0.9rem;
-            background: #fff0f0;
-            padding: 4px 12px;
-            border-radius: 10px;
-        }
-
-        /* 底部浮動按鈕 */
-        .fab-container {
-            position: fixed;
-            bottom: 20px;
-            left: 0;
-            right: 0;
-            display: flex;
-            justify-content: center;
-            padding: 0 20px;
-        }
-
-        .check-in-btn {
-            background: #2ed573;
+        /* --- 2. 許願池樣式 --- */
+        .form-group { margin-bottom: 20px; }
+        .form-label { display: block; margin-bottom: 8px; color: var(--text-sub); font-size: 0.9rem; }
+        .form-input {
+            width: 100%;
+            background: #2c2c2c;
+            border: 1px solid #444;
             color: white;
+            padding: 12px;
+            border-radius: 10px;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+        .form-input:focus { outline: none; border-color: var(--accent); }
+        
+        .photo-upload-box {
+            border: 2px dashed #444;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            color: #666;
+            cursor: pointer;
+        }
+        .submit-btn {
+            width: 100%;
+            padding: 15px;
+            background: var(--accent-gradient);
             border: none;
-            padding: 15px 40px;
             border-radius: 50px;
+            color: white;
             font-size: 1.1rem;
             font-weight: bold;
-            box-shadow: 0 4px 15px rgba(46, 213, 115, 0.4);
-            cursor: pointer;
-            width: 100%;
-            max-width: 400px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-        
-        .check-in-btn:disabled {
-            background: #a4b0be;
-            box-shadow: none;
+            margin-top: 10px;
         }
 
+        /* --- 3. 抽獎機樣式 --- */
+        .gacha-container { text-align: center; padding-top: 20px; }
+        .gacha-box {
+            width: 200px;
+            height: 200px;
+            background: url('https://cdn-icons-png.flaticon.com/512/3219/3219662.png') no-repeat center center;
+            background-size: contain;
+            margin: 0 auto 30px auto;
+            filter: drop-shadow(0 0 10px rgba(255, 71, 87, 0.5));
+        }
+        .gacha-btn {
+            background: linear-gradient(135deg, #f1c40f, #f39c12);
+            color: #121212;
+            font-weight: bold;
+            padding: 15px 40px;
+            border-radius: 50px;
+            border: none;
+            font-size: 1.2rem;
+            box-shadow: 0 0 20px rgba(241, 196, 15, 0.4);
+        }
+
+        /* --- 4. 交易紀錄列表 --- */
+        .history-list { list-style: none; padding: 0; }
+        .history-item {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #333;
+        }
+        .history-info { display: flex; flex-direction: column; }
+        .history-time { font-size: 0.75rem; color: #666; margin-top: 4px; }
+        .history-amount { font-weight: bold; }
+        .plus { color: #2ed573; }
+        .minus { color: var(--accent); }
+
+        /* --- 底部導覽列 (Bottom Navigation) --- */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: #1a1a1a;
+            border-top: 1px solid #333;
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0;
+            z-index: 100;
+        }
+
+        .nav-item {
+            color: #666;
+            text-align: center;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .nav-item i { display: block; font-size: 1.4rem; margin-bottom: 4px; }
+        .nav-item.active { color: var(--accent); }
+
+        /* 彈窗樣式 */
+        .modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none; justify-content: center; align-items: center; z-index: 200;
+        }
+        .modal-content {
+            background: #2c2c2c; padding: 30px; border-radius: 20px; text-align: center; width: 80%;
+        }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <div class="shop-name">應有盡有大超商 🛒</div>
-        <div class="points-container">
-            <span class="points" id="points-display">--</span>
-            <span class="points-label">Point</span>
-        </div>
-        <div class="status-badge" id="status">正在連線資料庫...</div>
+    <div class="header-card">
+        <div class="user-title">VIP MEMBER</div>
+        <div class="points-display" id="points-display">--</div>
+        <div class="points-label">Current Points</div>
+        <div style="font-size: 0.8rem; color: #444; margin-top: 5px;" id="status">Loading...</div>
     </div>
 
-    <div class="container">
-        <div class="section-title">熱門兌換</div>
+    <div id="page-shop" class="page-section active">
+        <h3 style="color:white; margin-bottom:20px;">Reward Shop</h3>
+        <div class="grid shop-grid">
+            <div class="item-card" onclick="redeemItem('按摩券 (30分)', 500)">
+                <div class="item-icon">💆‍♀️</div>
+                <div class="item-name">按摩券 (30分)</div>
+                <div class="item-price">500 Pt</div>
+            </div>
+            <div class="item-card" onclick="redeemItem('手搖飲一杯', 150)">
+                <div class="item-icon">🧋</div>
+                <div class="item-name">手搖飲一杯</div>
+                <div class="item-price">150 Pt</div>
+            </div>
+            <div class="item-card" onclick="redeemItem('免死金牌', 1000)">
+                <div class="item-icon">🛡️</div>
+                <div class="item-name">免死金牌</div>
+                <div class="item-price">1000 Pt</div>
+            </div>
+            <div class="item-card" onclick="redeemItem('看電影', 800)">
+                <div class="item-icon">🎬</div>
+                <div class="item-name">看電影</div>
+                <div class="item-price">800 Pt</div>
+            </div>
+        </div>
         
-        <div class="grid">
-            <div class="card" onclick="alert('請截圖傳給男友兌換！')">
-                <div class="card-icon">💆‍♀️</div>
-                <div class="card-title">按摩券 (30分)</div>
-                <div class="card-price">500 Pt</div>
-            </div>
+        <button class="submit-btn" id="checkInBtn" style="margin-top: 30px; background: #2ed573;">
+            📅 每日簽到 (+10)
+        </button>
+    </div>
 
-            <div class="card" onclick="alert('請截圖傳給男友兌換！')">
-                <div class="card-icon">🧋</div>
-                <div class="card-title">手搖飲一杯</div>
-                <div class="card-price">150 Pt</div>
-            </div>
+    <div id="page-wish" class="page-section">
+        <h3 style="color:white;">Make a Wish ✨</h3>
+        <p style="color:#888; font-size:0.9rem;">想要什麼禮物？在這裡許願，老闆會看到的。</p>
+        
+        <div class="form-group">
+            <label class="form-label">許願商品名稱</label>
+            <input type="text" id="wish-input" class="form-input" placeholder="例如：Dyson 吹風機">
+        </div>
 
-            <div class="card" onclick="alert('請截圖傳給男友兌換！')">
-                <div class="card-icon">🛡️</div>
-                <div class="card-title">免死金牌</div>
-                <div class="card-price">1000 Pt</div>
+        <div class="form-group">
+            <label class="form-label">上傳參考圖片 (選填)</label>
+            <div class="photo-upload-box" onclick="document.getElementById('fake-file').click()">
+                <i class="fas fa-camera" style="font-size: 2rem; margin-bottom: 10px;"></i><br>
+                點擊選擇照片
             </div>
+            <input type="file" id="fake-file" style="display: none;" onchange="alert('照片已選擇！(僅供預覽)')">
+        </div>
 
-            <div class="card" onclick="alert('請截圖傳給男友兌換！')">
-                <div class="card-icon">🎬</div>
-                <div class="card-title">看電影</div>
-                <div class="card-price">800 Pt</div>
+        <button class="submit-btn" onclick="submitWish()">🚀 提交許願</button>
+    </div>
+
+    <div id="page-gacha" class="page-section">
+        <h3 style="color:white; text-align: center;">Lucky Draw 🎰</h3>
+        <p style="color:#888; text-align: center; font-size: 0.9rem;">消耗 20 點試試手氣！</p>
+        
+        <div class="gacha-container">
+            <div class="gacha-box"></div>
+            <button class="gacha-btn" onclick="playGacha()">抽獎 (-20 Pt)</button>
+        </div>
+        
+        <div style="background: #222; padding: 15px; border-radius: 10px; margin-top: 20px;">
+            <div style="color: var(--gold); font-weight: bold; margin-bottom: 10px;">🏆 獎品一覽</div>
+            <div style="font-size: 0.85rem; color: #888; display: flex; justify-content: space-between;">
+                <span>頭獎：現金 $1000</span><span>(機率極低)</span>
+            </div>
+            <div style="font-size: 0.85rem; color: #888; display: flex; justify-content: space-between; margin-top:5px;">
+                <span>二獎：親一下</span><span>(機率高)</span>
+            </div>
+             <div style="font-size: 0.85rem; color: #888; display: flex; justify-content: space-between; margin-top:5px;">
+                <span>三獎：銘謝惠顧</span><span>(別灰心)</span>
             </div>
         </div>
     </div>
 
-    <div class="fab-container">
-        <button class="check-in-btn" id="checkInBtn">
-            <span>📅</span> 每日簽到領取 (+10)
-        </button>
+    <div id="page-history" class="page-section">
+        <h3 style="color:white;">History 📜</h3>
+        <ul class="history-list" id="history-container">
+            <li style="text-align:center; color:#666;">載入中...</li>
+        </ul>
+    </div>
+
+    <div class="bottom-nav">
+        <div class="nav-item active" onclick="switchTab('page-shop', this)">
+            <i class="fas fa-store"></i> 商城
+        </div>
+        <div class="nav-item" onclick="switchTab('page-wish', this)">
+            <i class="fas fa-star"></i> 許願
+        </div>
+        <div class="nav-item" onclick="switchTab('page-gacha', this)">
+            <i class="fas fa-gift"></i> 抽獎
+        </div>
+        <div class="nav-item" onclick="switchTab('page-history', this)">
+            <i class="fas fa-history"></i> 紀錄
+        </div>
+    </div>
+
+    <div id="resultModal" class="modal">
+        <div class="modal-content">
+            <h2 id="modalTitle" style="color: var(--gold);">恭喜獲得！</h2>
+            <p id="modalBody" style="font-size: 1.5rem; color: white; margin: 20px 0;">獎品名稱</p>
+            <button class="submit-btn" onclick="document.getElementById('resultModal').style.display='none'">收下</button>
+        </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, doc, getDoc, updateDoc, increment, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, updateDoc, increment, setDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // 你的設定檔
         const firebaseConfig = {
             apiKey: "AIzaSyCyJpNrkcVCefwq53wQDQZmZGhjOJpv27c",
             authDomain: "makinsat-36a6e.firebaseapp.com",
@@ -217,58 +332,186 @@
         };
 
         const app = initializeApp(firebaseConfig);
-        
-        // 🚨 修正1：指定資料庫名稱為 'babychiu'
-        const db = getFirestore(app, "babychiu");
-        
-        // 🚨 修正2：指定集合名稱為 'USERs' (注意大小寫)
-        const userRef = doc(db, "USERs", "ziling");
+        const db = getFirestore(app, "babychiu"); // 你的資料庫名稱
+        const userRef = doc(db, "USERs", "ziling"); // 你的資料夾路徑
 
-        const display = document.getElementById('points-display');
-        const status = document.getElementById('status');
-        const btn = document.getElementById('checkInBtn');
+        // --- 全域變數 ---
+        let currentPoints = 0;
 
-        // 讀取點數
-        async function loadPoints() {
+        // --- 初始化讀取 ---
+        async function loadData() {
+            const status = document.getElementById('status');
+            const display = document.getElementById('points-display');
+            
             try {
                 const docSnap = await getDoc(userRef);
                 if (docSnap.exists()) {
-                    display.innerText = docSnap.data().points;
-                    status.innerText = "連線成功 ✅";
-                    btn.disabled = false;
+                    const data = docSnap.data();
+                    currentPoints = data.points || 0;
+                    display.innerText = currentPoints;
+                    status.innerText = "● Online";
+                    
+                    // 載入歷史紀錄 (如果有的話)
+                    renderHistory(data.history || []);
                 } else {
-                    // 如果沒資料，自動建立
-                    await setDoc(userRef, { points: 0 });
+                    await setDoc(userRef, { points: 0, history: [] });
                     display.innerText = 0;
-                    status.innerText = "新帳戶建立完成";
                 }
             } catch (error) {
-                console.error("錯誤詳情:", error);
-                status.innerText = "連線失敗";
+                console.error(error);
+                status.innerText = "Offline";
             }
         }
 
-        // 簽到按鈕功能
-        btn.addEventListener('click', async () => {
-            btn.disabled = true;
-            btn.innerHTML = "入帳中...";
-            try {
-                await updateDoc(userRef, {
-                    points: increment(10),
-                    last_checkin: new Date()
-                });
-                await loadPoints();
-                alert("🎉 簽到成功！點數已入帳！");
-            } catch (error) {
-                alert("錯誤：" + error.message);
-            } finally {
-                btn.innerHTML = "<span>📅</span> 每日簽到領取 (+10)";
-                btn.disabled = false;
+        // --- 渲染歷史紀錄 ---
+        window.renderHistory = function(historyArray) {
+            const container = document.getElementById('history-container');
+            container.innerHTML = ""; // 清空
+            
+            if (!historyArray || historyArray.length === 0) {
+                container.innerHTML = '<li style="text-align:center; color:#666;">暫無紀錄</li>';
+                return;
             }
+
+            // 反轉陣列，讓最新的顯示在最上面
+            const reversedHistory = [...historyArray].reverse();
+
+            reversedHistory.forEach(item => {
+                const li = document.createElement('li');
+                li.className = 'history-item';
+                const isPlus = item.amount > 0;
+                li.innerHTML = `
+                    <div class="history-info">
+                        <span>${item.reason}</span>
+                        <span class="history-time">${item.date}</span>
+                    </div>
+                    <div class="history-amount ${isPlus ? 'plus' : 'minus'}">
+                        ${isPlus ? '+' : ''}${item.amount}
+                    </div>
+                `;
+                container.appendChild(li);
+            });
+        }
+
+        // --- 寫入紀錄 Helper ---
+        async function addHistoryLog(reason, amount) {
+            const today = new Date().toLocaleString('zh-TW', { hour12: false });
+            await updateDoc(userRef, {
+                history: arrayUnion({
+                    date: today,
+                    reason: reason,
+                    amount: amount
+                })
+            });
+        }
+
+        // --- 頁面切換邏輯 ---
+        window.switchTab = function(pageId, navElement) {
+            // 隱藏所有頁面
+            document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+            // 顯示目標頁面
+            document.getElementById(pageId).classList.add('active');
+            
+            // 導覽列樣式切換
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            navElement.classList.add('active');
+
+            // 如果切到紀錄頁，重新載入一次數據以更新畫面
+            if(pageId === 'page-history') {
+                loadData();
+            }
+        }
+
+        // --- 功能 1: 每日簽到 ---
+        document.getElementById('checkInBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('checkInBtn');
+            btn.disabled = true;
+            btn.innerText = "處理中...";
+            try {
+                await updateDoc(userRef, { points: increment(10) });
+                await addHistoryLog("每日簽到", 10);
+                await loadData();
+                alert("簽到成功！+10 點");
+            } catch (e) { alert("錯誤"); }
+            btn.disabled = false;
+            btn.innerText = "📅 每日簽到 (+10)";
         });
 
-        // 啟動程式
-        loadPoints();
+        // --- 功能 2: 兌換商品 (扣點) ---
+        window.redeemItem = async function(itemName, cost) {
+            if (currentPoints < cost) {
+                alert("點數不足！快去叫男友加分！");
+                return;
+            }
+            if (!confirm(`確定要花費 ${cost} 點兌換「${itemName}」嗎？`)) return;
+
+            try {
+                await updateDoc(userRef, { points: increment(-cost) });
+                await addHistoryLog(`兌換：${itemName}`, -cost);
+                await loadData();
+                alert(`兌換成功！請截圖給男友。`);
+            } catch (e) { alert("交易失敗"); }
+        }
+
+        // --- 功能 3: 許願 (寫入資料庫的 wish 欄位) ---
+        window.submitWish = async function() {
+            const input = document.getElementById('wish-input').value;
+            if (!input) { alert("請輸入願望！"); return; }
+            
+            // 因為沒有 Storage，我們只存文字，假裝上傳了圖片
+            try {
+                // 我們把願望寫入一個新的陣列欄位 'wishes'
+                await updateDoc(userRef, {
+                    wishes: arrayUnion({
+                        item: input,
+                        date: new Date().toLocaleString(),
+                        status: "pending"
+                    })
+                });
+                alert("許願已送出！男友會看到的 ( probably )");
+                document.getElementById('wish-input').value = "";
+            } catch (e) { 
+                console.error(e);
+                alert("送出失敗，請檢查網路"); 
+            }
+        }
+
+        // --- 功能 4: 抽獎機率設定 (任你調整) ---
+        window.playGacha = async function() {
+            const cost = 20; // 抽一次多少錢
+            if (currentPoints < cost) { alert("點數不足 20 點！"); return; }
+
+            // 先扣款
+            try {
+                await updateDoc(userRef, { points: increment(-cost) });
+                await addHistoryLog("幸運抽獎", -cost);
+                await loadData(); // 更新餘額
+            } catch(e) { return; }
+
+            // --- 機率設定區 (你可以改這裡) ---
+            const rand = Math.random(); // 產生 0.0 ~ 1.0 的隨機數
+            let prize = "";
+
+            if (rand < 0.01) { 
+                // 1% 機率 (0.01)
+                prize = "頭獎：現金 $1000"; 
+            } else if (rand < 0.40) { 
+                // 39% 機率 (0.01 ~ 0.40)
+                prize = "二獎：親一下"; 
+            } else { 
+                // 剩餘 60% 機率
+                prize = "三獎：銘謝惠顧 (拍拍)"; 
+            }
+
+            // 顯示結果
+            document.getElementById('modalBody').innerText = prize;
+            document.getElementById('resultModal').style.display = 'flex';
+            
+            // 如果中獎，可以選擇要不要自動寫入紀錄（這裡只紀錄扣款，中獎通常要當下截圖）
+        }
+
+        // 啟動
+        loadData();
     </script>
 </body>
 </html>
