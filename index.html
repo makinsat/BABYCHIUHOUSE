@@ -111,6 +111,31 @@
     input[type=range]::-webkit-slider-runnable-track {
       width: 100%; height: 4px; cursor: pointer; background: #333;
     }
+
+    /* 撲克牌樣式 */
+    .card {
+      width: 50px;
+      height: 70px;
+      background: white;
+      border-radius: 4px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 4px;
+      font-weight: bold;
+      font-size: 12px;
+      color: black;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+      position: relative;
+    }
+    .card.red { color: #e74c3c; }
+    .card.hidden { 
+      background: repeating-linear-gradient(45deg, #b71c1c, #b71c1c 5px, #c62828 5px, #c62828 10px);
+      border: 2px solid white;
+    }
+    .card .suit { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 20px; opacity: 0.2; }
+    .card .val-top { align-self: flex-start; line-height: 1; }
+    .card .val-bottom { align-self: flex-end; transform: rotate(180deg); line-height: 1; }
   </style>
 </head>
 <body>
@@ -182,13 +207,47 @@
         Dice: (<Fragment><rect x="3" y="3" width="18" height="18" rx="0"/><circle cx="8.5" cy="8.5" r="1.5"/><circle cx="15.5" cy="15.5" r="1.5"/><circle cx="15.5" cy="8.5" r="1.5"/><circle cx="8.5" cy="15.5" r="1.5"/><circle cx="12" cy="12" r="1.5"/></Fragment>),
         Droplet: (<Fragment><path d="M12 2.69l5.74 5.88a8.1 8.1 0 1 1-11.48 0L12 2.69z"/><path d="M12 22a7 7 0 0 1-7-7c0-2.32 1.15-4.36 2.87-5.59"/><path d="M12 8v8"/></Fragment>),
         Book: (<Fragment><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></Fragment>),
-        Minus: <line x1="5" y1="12" x2="19" y2="12"/>
+        Minus: <line x1="5" y1="12" x2="19" y2="12"/>,
+        Cards: (<Fragment><rect x="6" y="2" width="12" height="16" rx="2" ry="2" /><line x1="9" y1="2" x2="9" y2="18" /><path d="M15 18l-3 3l-3 -3" /></Fragment>) // 簡單的卡片圖示
       };
       return (
         <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
           {icons[name] || null}
         </svg>
       );
+    };
+
+    // Blackjack Logic Helpers
+    const createDeck = () => {
+      const suits = ['♠', '♥', '♦', '♣'];
+      const values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+      let deck = [];
+      for (let s of suits) {
+        for (let v of values) {
+          deck.push({ suit: s, value: v, color: (s === '♥' || s === '♦') ? 'red' : 'black' });
+        }
+      }
+      // Shuffle
+      for (let i = deck.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [deck[i], deck[j]] = [deck[j], deck[i]];
+      }
+      return deck;
+    };
+
+    const calculateHand = (hand) => {
+      let sum = 0;
+      let aces = 0;
+      for (let card of hand) {
+        if (['J', 'Q', 'K'].includes(card.value)) sum += 10;
+        else if (card.value === 'A') { sum += 11; aces += 1; }
+        else sum += parseInt(card.value);
+      }
+      while (sum > 21 && aces > 0) {
+        sum -= 10;
+        aces -= 1;
+      }
+      return sum;
     };
 
     const compressImage = (file) => {
@@ -248,6 +307,14 @@
       const [approvalPoints, setApprovalPoints] = useState({});
       const [penaltyDesc, setPenaltyDesc] = useState('');
       const [penaltyAmount, setPenaltyAmount] = useState('');
+
+      // Blackjack State
+      const [bjDeck, setBjDeck] = useState([]);
+      const [bjPlayerHand, setBjPlayerHand] = useState([]);
+      const [bjDealerHand, setBjDealerHand] = useState([]);
+      const [bjGameState, setBjGameState] = useState('betting'); // betting, playing, gameOver
+      const [bjMessage, setBjMessage] = useState('');
+      const [bjBet, setBjBet] = useState(0.25);
 
       const getPublicRef = (name) => collection(db, 'artifacts', appId, 'public', 'data', name);
 
@@ -321,7 +388,6 @@
         return () => { unsubStats(); unsubSubs(); unsubRewards(); unsubNotifs(); unsubSettings(); };
       }, [user]);
 
-      // 修復後的刪除功能：支援 event 傳入以阻止冒泡，並增加錯誤處理
       const deleteItem = async (e, colName, id, itemName) => {
         if (e && e.stopPropagation) e.stopPropagation(); // 阻止事件冒泡
         if (!confirm(`確定要刪除「${itemName}」嗎？此動作無法復原。`)) return;
@@ -343,6 +409,139 @@
           setAdminPass(''); 
           setActiveTab('admin'); // 登入後自動跳轉到管理頁
         } else { alert('密碼錯誤 🔒'); }
+      };
+
+      // Blackjack Functions
+      const startBlackjack = async () => {
+        const cost = 0.25;
+        if (points < cost) return alert("點數不足 0.25！");
+        
+        try {
+          // Deduct entry fee
+          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'total'), { 
+            totalPoints: increment(-cost),
+            totalRedeemed: increment(cost)
+          });
+
+          const newDeck = createDeck();
+          const pHand = [newDeck.pop(), newDeck.pop()];
+          const dHand = [newDeck.pop(), newDeck.pop()];
+          
+          setBjDeck(newDeck);
+          setBjPlayerHand(pHand);
+          setBjDealerHand(dHand);
+          setBjBet(cost);
+          setBjGameState('playing');
+          setBjMessage('');
+
+          // Check natural blackjack immediately? standard is usually allow playing unless dealer has ace/10. 
+          // Simplified: check 21 after initial deal.
+          if (calculateHand(pHand) === 21) {
+             finishBlackjack(pHand, dHand, cost, true);
+          }
+
+        } catch (e) { alert("遊戲啟動失敗"); }
+      };
+
+      const hitBlackjack = () => {
+        const newDeck = [...bjDeck];
+        const card = newDeck.pop();
+        const newHand = [...bjPlayerHand, card];
+        setBjDeck(newDeck);
+        setBjPlayerHand(newHand);
+        
+        if (calculateHand(newHand) > 21) {
+          setBjGameState('gameOver');
+          setBjMessage('爆牌了！(Bust) 💸');
+          // No refund, already deducted
+        }
+      };
+
+      const standBlackjack = () => {
+        let currentDeck = [...bjDeck];
+        let currentDHand = [...bjDealerHand];
+        
+        // Dealer AI: Hit until 17
+        while (calculateHand(currentDHand) < 17) {
+          currentDHand.push(currentDeck.pop());
+        }
+        setBjDeck(currentDeck);
+        setBjDealerHand(currentDHand);
+        finishBlackjack(bjPlayerHand, currentDHand, bjBet, false);
+      };
+
+      const doubleBlackjack = async () => {
+        if (bjPlayerHand.length !== 2) return;
+        const extraCost = 0.25;
+        if (points < extraCost) return alert("點數不足，無法雙倍下注！");
+
+        try {
+           await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'total'), { 
+            totalPoints: increment(-extraCost),
+            totalRedeemed: increment(extraCost)
+          });
+          
+          // Deal one card then stand
+          const newDeck = [...bjDeck];
+          const card = newDeck.pop();
+          const newHand = [...bjPlayerHand, card];
+          
+          // Dealer logic immediately
+          let currentDHand = [...bjDealerHand];
+          // Check player bust first
+          if (calculateHand(newHand) > 21) {
+             setBjPlayerHand(newHand);
+             setBjBet(bjBet + extraCost);
+             setBjGameState('gameOver');
+             setBjMessage('雙倍下注...但爆牌了！ 💸');
+             return;
+          }
+
+          while (calculateHand(currentDHand) < 17) {
+            currentDHand.push(newDeck.pop());
+          }
+
+          setBjDeck(newDeck);
+          setBjPlayerHand(newHand);
+          setBjDealerHand(currentDHand);
+          setBjBet(bjBet + extraCost);
+          finishBlackjack(newHand, currentDHand, bjBet + extraCost, false);
+
+        } catch(e) { alert("雙倍下注失敗"); }
+      };
+
+      const finishBlackjack = async (pHand, dHand, currentBet, isNatural) => {
+        const pScore = calculateHand(pHand);
+        const dScore = calculateHand(dHand);
+        let winAmount = 0;
+        let msg = '';
+
+        if (pScore > 21) {
+          msg = '爆牌了！你輸了 💸';
+        } else if (dScore > 21) {
+          msg = '莊家爆牌！你贏了！ 🎉';
+          winAmount = currentBet * 2;
+        } else if (pScore > dScore) {
+          msg = '你贏了！ 🎉';
+          winAmount = currentBet * 2;
+        } else if (pScore === dScore) {
+          msg = '平手 (Push) 🤝';
+          winAmount = currentBet;
+        } else {
+          msg = '莊家贏了 💸';
+        }
+
+        setBjGameState('gameOver');
+        setBjMessage(msg);
+
+        if (winAmount > 0) {
+          try {
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'total'), { 
+              totalPoints: increment(winAmount),
+              totalIssued: increment(winAmount - currentBet) // only count profit as issued
+            });
+          } catch(e) { console.error(e); }
+        }
       };
 
       const handleUploadTask = async () => {
@@ -388,7 +587,7 @@
       const handleApprove = async (sub, customPoints) => {
         if (!customPoints || customPoints <= 0) return alert("請輸入有效的點數");
         setIsProcessing(true);
-        const pts = parseInt(customPoints);
+        const pts = parseFloat(customPoints); // Changed to parseFloat to support decimals
         try {
           await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'submissions', sub.id), { status: 'approved', awardedPoints: pts });
           await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'total'), { 
@@ -402,7 +601,7 @@
 
       const handleDeductPoints = async () => {
         if (!penaltyDesc.trim() || !penaltyAmount) return alert("請輸入原因與分數");
-        const pts = parseInt(penaltyAmount);
+        const pts = parseFloat(penaltyAmount);
         setIsProcessing(true);
         try {
           await addDoc(getPublicRef('submissions'), {
@@ -534,7 +733,7 @@
             {activeTab !== 'dashboard' && (
               <div className="flex justify-center mb-6">
                 <div className="glass-card px-8 py-3 flex items-center gap-4 shadow-[0_0_20px_rgba(212,175,55,0.2)]">
-                  <span className="text-4xl font-bold tracking-tight text-[#d4af37] drop-shadow-md">{points}</span>
+                  <span className="text-4xl font-bold tracking-tight text-[#d4af37] drop-shadow-md">{parseFloat(points).toFixed(2)}</span>
                   <span className="text-[10px] font-bold text-[#888] uppercase tracking-[0.2em] border-l border-[#333] pl-4">Current<br/>Points</span>
                 </div>
               </div>
@@ -605,7 +804,7 @@
                   </div>
                   <div className="z-10">
                     <p className="text-xs text-[#888] mb-1">TOTAL BALANCE</p>
-                    <h1 className="text-5xl font-bold text-[#d4af37] tracking-tighter">{points}</h1>
+                    <h1 className="text-5xl font-bold text-[#d4af37] tracking-tighter">{parseFloat(points).toFixed(2)}</h1>
                   </div>
                   <div className="flex justify-between items-end z-10 border-t border-[#333] pt-4">
                     <p className="text-[10px] text-[#444] font-mono">ID: {user?.uid?.substring(0,8).toUpperCase()}</p>
@@ -622,11 +821,11 @@
                       <p className="text-[10px] text-[#666] mt-1">打卡與紀錄</p>
                     </div>
                   </div>
-                  <div onClick={() => setActiveTab('rewards')} className="bg-[#1e1e1e] p-6 border border-[#333] hover:border-[#d4af37] transition-all cursor-pointer group h-32 flex flex-col justify-between">
-                    <Icon name="Gift" size={28} className="text-[#666] group-hover:text-[#d4af37] transition-colors" />
+                  <div onClick={() => setActiveTab('blackjack')} className="bg-[#1e1e1e] p-6 border border-[#333] hover:border-[#d4af37] transition-all cursor-pointer group h-32 flex flex-col justify-between">
+                    <Icon name="Cards" size={28} className="text-[#666] group-hover:text-[#d4af37] transition-colors" />
                     <div>
-                      <h3 className="font-bold text-[#e5e5e5] text-sm">兌換獎勵</h3>
-                      <p className="text-[10px] text-[#666] mt-1">商店與福利</p>
+                      <h3 className="font-bold text-[#e5e5e5] text-sm">二十一點</h3>
+                      <p className="text-[10px] text-[#666] mt-1">試試手氣</p>
                     </div>
                   </div>
                 </div>
@@ -637,13 +836,101 @@
                   <div className="flex gap-4 overflow-x-auto no-scrollbar">
                     <div className="bg-[#111] p-4 border border-[#222] min-w-[120px] flex-shrink-0">
                       <p className="text-[10px] text-[#444]">ISSUED</p>
-                      <p className="text-lg font-bold text-[#e5e5e5]">{stats.totalIssued}</p>
+                      <p className="text-lg font-bold text-[#e5e5e5]">{stats.totalIssued.toFixed(2)}</p>
                     </div>
                     <div className="bg-[#111] p-4 border border-[#222] min-w-[120px] flex-shrink-0">
                       <p className="text-[10px] text-[#444]">REDEEMED</p>
-                      <p className="text-lg font-bold text-[#e5e5e5]">{stats.totalRedeemed}</p>
+                      <p className="text-lg font-bold text-[#e5e5e5]">{stats.totalRedeemed.toFixed(2)}</p>
                     </div>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* Blackjack Tab */}
+            {activeTab === 'blackjack' && (
+              <div className="space-y-6 animate-in flex flex-col items-center justify-start h-full pb-10">
+                <div className="w-full bg-[#1e1e1e] p-6 border border-[#333] shadow-lg flex flex-col gap-4">
+                  <div className="flex justify-between items-center border-b border-[#333] pb-3">
+                    <h2 className="text-lg font-bold text-[#d4af37] flex items-center gap-2"><Icon name="Cards" size={20}/> BLACKJACK</h2>
+                    <span className="text-xs text-[#666]">Bet: {bjBet} pts</span>
+                  </div>
+
+                  {/* Dealer Hand */}
+                  <div className="flex flex-col items-center gap-2">
+                    <p className="text-[10px] text-[#888] uppercase tracking-widest">Dealer</p>
+                    <div className="flex gap-2">
+                      {bjGameState === 'betting' ? (
+                        <div className="w-12 h-16 border border-[#333] rounded bg-[#222] flex items-center justify-center text-[#444] text-xs">Empty</div>
+                      ) : (
+                        bjDealerHand.map((card, i) => (
+                          <div key={i} className={`card ${card.color} ${i === 0 && bjGameState === 'playing' ? 'hidden' : ''}`}>
+                            {i === 0 && bjGameState === 'playing' ? '' : (
+                              <>
+                                <span className="val-top">{card.value}<br/>{card.suit}</span>
+                                <span className="suit">{card.suit}</span>
+                                <span className="val-bottom">{card.value}<br/>{card.suit}</span>
+                              </>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    <p className="text-xs text-[#e5e5e5] font-mono h-4">
+                      {bjGameState !== 'betting' && bjGameState !== 'playing' ? calculateHand(bjDealerHand) : ''}
+                    </p>
+                  </div>
+
+                  {/* Message Area */}
+                  <div className="h-8 flex items-center justify-center">
+                    <span className="text-sm font-bold text-[#d4af37] animate-bounce">{bjMessage}</span>
+                  </div>
+
+                  {/* Player Hand */}
+                  <div className="flex flex-col items-center gap-2">
+                    <p className="text-xs text-[#e5e5e5] font-mono h-4">
+                      {bjGameState !== 'betting' ? calculateHand(bjPlayerHand) : ''}
+                    </p>
+                    <div className="flex gap-2">
+                      {bjGameState === 'betting' ? (
+                        <div className="w-12 h-16 border border-[#333] rounded bg-[#222] flex items-center justify-center text-[#444] text-xs">Empty</div>
+                      ) : (
+                        bjPlayerHand.map((card, i) => (
+                          <div key={i} className={`card ${card.color}`}>
+                            <span className="val-top">{card.value}<br/>{card.suit}</span>
+                            <span className="suit">{card.suit}</span>
+                            <span className="val-bottom">{card.value}<br/>{card.suit}</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    <p className="text-[10px] text-[#888] uppercase tracking-widest">You</p>
+                  </div>
+
+                  {/* Controls */}
+                  <div className="grid grid-cols-2 gap-3 mt-2">
+                    {bjGameState === 'betting' || bjGameState === 'gameOver' ? (
+                      <button onClick={startBlackjack} className="col-span-2 btn-action py-3 text-xs tracking-widest">
+                        發牌 (Deal) - 0.25 P
+                      </button>
+                    ) : (
+                      <>
+                        <button onClick={hitBlackjack} className="bg-[#333] text-white py-3 text-xs font-bold border border-[#444] hover:bg-[#444]">要牌 (Hit)</button>
+                        <button onClick={standBlackjack} className="btn-action py-3 text-xs font-bold">停牌 (Stand)</button>
+                        {bjPlayerHand.length === 2 && (
+                          <button onClick={doubleBlackjack} className="col-span-2 bg-[#d4af37]/20 text-[#d4af37] border border-[#d4af37] py-3 text-xs font-bold hover:bg-[#d4af37]/40">
+                            雙倍下注 (Double) - 0.25 P
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div className="text-[10px] text-[#666] mt-4 text-center max-w-xs leading-relaxed">
+                  <p>21點規則：</p>
+                  <p>A 可當 1 或 11，J/Q/K 為 10 點</p>
+                  <p>莊家小於 17 點必須補牌</p>
+                  <p>獲勝賠率 1:1 (贏得 2 倍賭注)</p>
                 </div>
               </div>
             )}
@@ -930,6 +1217,9 @@
               </button>
               <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'home' ? 'text-[#d4af37] scale-110' : 'text-[#666] hover:text-[#888]'}`}>
                 <Icon name="Plus" size={20} className={activeTab === 'home' ? 'stroke-[2px]' : ''}/>
+              </button>
+              <button onClick={() => setActiveTab('blackjack')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'blackjack' ? 'text-[#d4af37] scale-110' : 'text-[#666] hover:text-[#888]'}`}>
+                <Icon name="Cards" size={20} className={activeTab === 'blackjack' ? 'stroke-[2px]' : ''}/>
               </button>
               <button onClick={() => setActiveTab('rewards')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'rewards' ? 'text-[#d4af37] scale-110' : 'text-[#666] hover:text-[#888]'}`}>
                 <Icon name="Gift" size={20} className={activeTab === 'rewards' ? 'stroke-[2px]' : ''}/>
