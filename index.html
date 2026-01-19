@@ -893,18 +893,6 @@
               <button onClick={() => setActiveTab('lottery')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'lottery' ? 'text-[#d4af37] scale-110' : 'text-[#666] hover:text-[#888]'}`}>
                 <Icon name="Dice" size={20} className={activeTab === 'lottery' ? 'stroke-[2px]' : ''}/>
               </button>
-              {/* Always show Admin/User button */}
-              <button onClick={() => {
-                  if (isAdmin) {
-                    setActiveTab('admin');
-                  } else {
-                    setShowAdminLogin(true);
-                  }
-                }} 
-                className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'admin' ? 'text-[#d4af37] scale-110' : 'text-[#666] hover:text-[#888]'}`}
-              >
-                <Icon name={isAdmin ? "User" : "Lock"} size={20} className={activeTab === 'admin' ? 'stroke-[2px]' : ''}/>
-              </button>
             </div>
           </div>
         </div>
