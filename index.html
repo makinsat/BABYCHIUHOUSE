@@ -629,7 +629,7 @@
                 {/* 英文打卡區 */}
                 <div className="bg-[#1e1e1e] p-6 border border-[#333] shadow-lg relative overflow-hidden">
                   <h3 className="font-bold text-[#e5e5e5] mb-5 flex gap-2 items-center tracking-wide"><Icon name="Book" size={18} className="text-[#d4af37]"/> 英文打卡區</h3>
-                  <textarea className="w-full bg-[#121212] p-4 border border-[#333] text-sm min-h-[90px] outline-none focus:border-[#d4af37] transition-all text-[#e5e5e5]" placeholder="今天讀了什麼英文..." value={desc} onChange={(e) => setDesc(e.target.value)} />
+                  <textarea className="w-full bg-[#121212] p-4 border border-[#333] text-sm min-h-[90px] outline-none focus:border-[#d4af37] transition-all text-[#e5e5e5]" placeholder="今天多鄰國讀了什麼英文..." value={desc} onChange={(e) => setDesc(e.target.value)} />
                   <div className="flex gap-3 mt-5">
                     <label className={`flex-[1.5] cursor-pointer py-3.5 flex items-center justify-center border transition-all ${selectedFile ? 'border-[#d4af37] bg-[#d4af37]/10 text-[#d4af37]' : 'border-[#333] bg-[#121212] text-[#666] hover:border-[#555]'}`}>
                       <Icon name="Image" size={16} className="mr-2"/> <span className="text-xs font-bold">{selectedFile ? '已選擇' : '上傳證明'}</span>
