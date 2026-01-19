@@ -137,32 +137,61 @@
     .card .val-top { align-self: flex-start; line-height: 1; }
     .card .val-bottom { align-self: flex-end; transform: rotate(180deg); line-height: 1; }
 
-    /* Mines 遊戲樣式 */
+    /* Mines 遊戲樣式 - 全面修復 */
     .mines-grid {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
       gap: 8px;
       margin: 0 auto;
-      max-width: 300px;
+      width: 100%;
+      max-width: 320px;
     }
     .mine-tile {
-      aspect-ratio: 1;
-      background: #2a2a2a;
-      border-radius: 4px;
+      width: 100%;
+      padding-bottom: 100%; /* 1:1 Aspect Ratio Hack - 確保正方形 */
+      background: #3a3a3a; /* 亮一點的灰色，確保可見 */
+      border-radius: 6px;
       cursor: pointer;
+      position: relative;
+      border-bottom: 4px solid #222; /* 立體感 */
+      transition: transform 0.1s ease, background 0.2s, border-color 0.2s;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+    .mine-tile:active { 
+      transform: translateY(2px); 
+      border-bottom-width: 2px;
+      box-shadow: 0 2px 3px rgba(0,0,0,0.3);
+    }
+    .mine-tile.revealed { 
+      background: #1a1a1a; 
+      border-bottom: 2px solid #000; 
+      cursor: default; 
+      transform: translateY(2px);
+      box-shadow: none;
+    }
+    .mine-tile.gem { 
+      background: #112e1e; 
+      border-bottom-color: #0b1f13; 
+      border-color: #2ecc71; /* 綠色邊框 */
+      border-width: 1px;
+    }
+    .mine-tile.mine { 
+      background: #3e1212; 
+      border-bottom-color: #2a0b0b; 
+      border-color: #e74c3c; /* 紅色邊框 */
+      border-width: 1px;
+    }
+    .mine-tile-inner {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: transform 0.1s ease, background 0.2s;
-      border-bottom: 4px solid #1a1a1a;
-      position: relative;
-      overflow: hidden;
     }
-    .mine-tile:active { transform: translateY(2px); border-bottom: 2px solid #1a1a1a; }
-    .mine-tile.revealed { background: #111; border-bottom: 2px solid #000; cursor: default; }
-    .mine-tile.gem { background: #162b1e; border-bottom-color: #162b1e; }
-    .mine-tile.mine { background: #3b1717; border-bottom-color: #3b1717; }
-    .mine-tile .content { font-size: 20px; animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    .mine-tile-inner .content { 
+      font-size: 24px; 
+      animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+    }
     @keyframes popIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
   </style>
 </head>
@@ -194,7 +223,7 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app, "babychiu");
-    const finalAppId = "vip-lounge-v3"; 
+    const finalAppId = "vip-lounge-v2"; 
 
     window.fb = { 
       db, auth, doc, setDoc, updateDoc, collection, onSnapshot, addDoc, 
@@ -301,47 +330,36 @@
       });
     };
 
-    // Global constant for default settings to avoid init issues
-    const DEFAULT_SETTINGS = { 
-        announce: 'Welcome to VIP Lounge', 
-        lotteryCost: 5,
-        lotteryProb: 0.1, 
-        bjCost: 0.25,
-        bjWinMult: 2, 
-        bjPushMult: 1,
-        bjDealerLuck: 0, 
-        minesCost: 5,
-        minesTrapProb: 0,
-        minesMultScale: 1.0, 
-    };
-
     function App() {
       const [user, setUser] = useState(null);
-      const [activeTab, setActiveTab] = useState('dashboard');
+      const [activeTab, setActiveTab] = useState('dashboard'); // 預設首頁
       const [activeGame, setActiveGame] = useState(null); // 'blackjack' or 'mines'
       const [isAdmin, setIsAdmin] = useState(false);
       const [points, setPoints] = useState(0);
       const [stats, setStats] = useState({ totalIssued: 0, totalRedeemed: 0 });
-      const [settings, setSettings] = useState(DEFAULT_SETTINGS); 
+      const [settings, setSettings] = useState({ announce: 'Welcome to VIP Lounge', lotteryProb: 0.1 }); // 新增設定狀態
       const [submissions, setSubmissions] = useState([]);
       const [rewards, setRewards] = useState([]);
       const [notifications, setNotifications] = useState([]);
       const [announcement, setAnnouncement] = useState('Welcome to VIP Lounge 🖤');
       const [loading, setLoading] = useState(true);
-      const [showNotifModal, setShowNotifModal] = useState(false);
+      const [showNotifModal, setShowNotifModal] = useState(false); // 通知彈窗
 
-      // Forms
+      // 英文打卡狀態
       const [desc, setDesc] = useState('');
       const [selectedFile, setSelectedFile] = useState(null);
+      
+      // 好事打卡狀態
       const [deedDesc, setDeedDesc] = useState('');
       const [deedFile, setDeedFile] = useState(null);
+
       const [isUploading, setIsUploading] = useState(false);
       const [isProcessing, setIsProcessing] = useState(false);
       const [adminPass, setAdminPass] = useState('');
       const [showAdminLogin, setShowAdminLogin] = useState(false);
-      const [waterCount, setWaterCount] = useState(250);
 
-      // Admin Forms
+      const [waterCount, setWaterCount] = useState(250); // 水量預設
+
       const [adminRewardName, setAdminRewardName] = useState('');
       const [adminRewardCost, setAdminRewardCost] = useState('');
       const [adminRewardImage, setAdminRewardImage] = useState(null);
@@ -354,14 +372,14 @@
       const [bjDeck, setBjDeck] = useState([]);
       const [bjPlayerHand, setBjPlayerHand] = useState([]);
       const [bjDealerHand, setBjDealerHand] = useState([]);
-      const [bjGameState, setBjGameState] = useState('betting');
+      const [bjGameState, setBjGameState] = useState('betting'); // betting, playing, gameOver
       const [bjMessage, setBjMessage] = useState('');
       const [bjBet, setBjBet] = useState(0.25);
 
       // Mines State
       const [minesCount, setMinesCount] = useState(3);
-      const [minesGrid, setMinesGrid] = useState([]); 
-      const [minesStatus, setMinesStatus] = useState('idle'); 
+      const [minesGrid, setMinesGrid] = useState([]); // {id, isMine, revealed}
+      const [minesStatus, setMinesStatus] = useState('idle'); // idle, playing, exploded, cashed_out
       const [minesMultiplier, setMinesMultiplier] = useState(1);
       const [minesPotentialWin, setMinesPotentialWin] = useState(0);
 
@@ -396,6 +414,7 @@
       useEffect(() => {
         if (!user) return;
         
+        // 讀取點數
         const unsubStats = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'total'), (d) => {
           if (d.exists()) {
             setPoints(d.data().totalPoints || 0);
@@ -405,12 +424,14 @@
           }
         });
         
+        // 讀取設定 (跑馬燈 & 機率)
         const unsubSettings = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), (d) => {
           if (d.exists()) {
-            setSettings({ ...DEFAULT_SETTINGS, ...d.data() });
+            setSettings(d.data());
             setAnnouncement(d.data().announce || 'Welcome');
           } else {
-            setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), DEFAULT_SETTINGS);
+            // 預設值
+            setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), { announce: 'Welcome', lotteryProb: 0.1 });
           }
         });
 
@@ -435,29 +456,40 @@
       }, [user]);
 
       const deleteItem = async (e, colName, id, itemName) => {
-        if (e && e.stopPropagation) e.stopPropagation(); 
+        if (e && e.stopPropagation) e.stopPropagation(); // 阻止事件冒泡
         if (!confirm(`確定要刪除「${itemName}」嗎？此動作無法復原。`)) return;
-        try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', colName, id)); } catch (err) { alert("刪除失敗"); }
+        
+        try { 
+          await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', colName, id)); 
+        } catch (err) { 
+          console.error("Delete Error:", err);
+          alert("刪除失敗，請稍後再試。"); 
+        }
       };
 
       const checkAdmin = () => {
         const secret = [53, 50, 48]; 
         const inputCodes = Array.from(adminPass).map(c => c.charCodeAt(0));
         if (JSON.stringify(secret) === JSON.stringify(inputCodes)) {
-          setIsAdmin(true); setShowAdminLogin(false); setAdminPass(''); setActiveTab('admin');
+          setIsAdmin(true); 
+          setShowAdminLogin(false); 
+          setAdminPass(''); 
+          setActiveTab('admin'); // 登入後自動跳轉到管理頁
         } else { alert('密碼錯誤 🔒'); }
       };
 
       // --- Mines Game Functions ---
       const startMines = async () => {
-        const cost = settings.minesCost || 5;
-        if (points < cost) return alert(`點數不足 ${cost} P！`);
+        const cost = 5;
+        if (points < cost) return alert("點數不足 5 P！");
         
         try {
+          // Deduct cost
           await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'total'), { 
             totalPoints: increment(-cost),
             totalRedeemed: increment(cost)
           });
+          
           await addDoc(getPublicRef('submissions'), {
             description: `💣 Mines：入場費`,
             status: 'spent', 
@@ -466,6 +498,7 @@
             awardedPoints: -cost
           });
 
+          // Create Grid (25 tiles)
           let grid = Array(25).fill(null).map((_, i) => ({ id: i, isMine: false, revealed: false }));
           let minesPlaced = 0;
           while (minesPlaced < minesCount) {
@@ -479,57 +512,53 @@
           setMinesGrid(grid);
           setMinesStatus('playing');
           setMinesMultiplier(1.0);
-          setMinesPotentialWin(cost); 
+          setMinesPotentialWin(5);
+
         } catch (e) { alert("遊戲錯誤"); }
       };
 
       const clickTile = (index) => {
-        if (minesStatus !== 'playing') return;
+        if (minesStatus !== 'playing') {
+          // 如果還沒開始，提示用戶
+          if(minesStatus === 'idle') alert('請先點擊下方的「開始遊戲」！');
+          return;
+        }
         if (minesGrid[index].revealed) return;
 
-        let newGrid = [...minesGrid];
-        let hitMine = newGrid[index].isMine;
-
-        if (!hitMine) {
-           const trapChance = settings.minesTrapProb || 0; 
-           if (Math.random() < trapChance) {
-               hitMine = true;
-               newGrid[index].isMine = true; 
-           }
-        }
-
+        const newGrid = [...minesGrid];
         newGrid[index].revealed = true;
 
-        if (hitMine) {
+        if (newGrid[index].isMine) {
+          // BOOM
           setMinesStatus('exploded');
           newGrid.forEach(t => t.revealed = true);
           setMinesGrid(newGrid);
         } else {
+          // Gem
           setMinesGrid(newGrid);
           const revealedCount = newGrid.filter(t => t.revealed && !t.isMine).length;
           const remainingTiles = 25 - (revealedCount - 1); 
           const remainingSafe = 25 - minesCount - (revealedCount - 1);
           
-          const scale = settings.minesMultScale || 1.0;
-          let nextMult = minesMultiplier * (remainingTiles / remainingSafe) * scale;
+          let nextMult = minesMultiplier * (remainingTiles / remainingSafe);
           
           setMinesMultiplier(nextMult);
-          const baseCost = settings.minesCost || 5;
-          setMinesPotentialWin(baseCost * nextMult);
+          setMinesPotentialWin(5 * nextMult);
         }
       };
 
       const cashOutMines = async () => {
         if (minesStatus !== 'playing') return;
+        
         try {
           const winAmount = minesPotentialWin;
-          const cost = settings.minesCost || 5;
           setMinesStatus('cashed_out');
           
           await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'total'), { 
             totalPoints: increment(winAmount),
-            totalIssued: increment(Math.max(0, winAmount - cost))
+            totalIssued: increment(Math.max(0, winAmount - 5))
           });
+          
           await addDoc(getPublicRef('submissions'), {
             description: `💣 Mines：獲勝 (${winAmount.toFixed(2)})`,
             status: 'won', 
@@ -541,18 +570,23 @@
           const newGrid = [...minesGrid];
           newGrid.forEach(t => t.revealed = true);
           setMinesGrid(newGrid);
+
         } catch (e) { alert("領取失敗"); }
       };
 
       // --- Blackjack Functions ---
       const startBlackjack = async () => {
-        const cost = settings.bjCost || 0.25;
-        if (points < cost) return alert(`點數不足 ${cost}！`);
+        const cost = 0.25;
+        if (points < cost) return alert("點數不足 0.25！");
+        
         try {
+          // Deduct entry fee
           await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'total'), { 
             totalPoints: increment(-cost),
             totalRedeemed: increment(cost)
           });
+          
+          // Record transaction
           await addDoc(getPublicRef('submissions'), {
             description: `♠️ 21點：入場費`,
             status: 'spent', 
@@ -564,6 +598,7 @@
           const newDeck = createDeck();
           const pHand = [newDeck.pop(), newDeck.pop()];
           const dHand = [newDeck.pop(), newDeck.pop()];
+          
           setBjDeck(newDeck);
           setBjPlayerHand(pHand);
           setBjDealerHand(dHand);
@@ -574,6 +609,7 @@
           if (calculateHand(pHand) === 21) {
              finishBlackjack(pHand, dHand, cost, true);
           }
+
         } catch (e) { alert("遊戲啟動失敗"); }
       };
 
@@ -583,6 +619,7 @@
         const newHand = [...bjPlayerHand, card];
         setBjDeck(newDeck);
         setBjPlayerHand(newHand);
+        
         if (calculateHand(newHand) > 21) {
           setBjGameState('gameOver');
           setBjMessage('爆牌了！(Bust) 💸');
@@ -594,13 +631,9 @@
       const standBlackjack = () => {
         let currentDeck = [...bjDeck];
         let currentDHand = [...bjDealerHand];
+        
         while (calculateHand(currentDHand) < 17) {
-          let card = currentDeck.pop();
-          if (calculateHand([...currentDHand, card]) > 21) {
-             const dealerLuck = settings.bjDealerLuck || 0; 
-             if (Math.random() < dealerLuck) card = currentDeck.pop();
-          }
-          currentDHand.push(card);
+          currentDHand.push(currentDeck.pop());
         }
         setBjDeck(currentDeck);
         setBjDealerHand(currentDHand);
@@ -609,13 +642,15 @@
 
       const doubleBlackjack = async () => {
         if (bjPlayerHand.length !== 2) return;
-        const extraCost = settings.bjCost || 0.25;
-        if (points < extraCost) return alert("點數不足！");
+        const extraCost = 0.25;
+        if (points < extraCost) return alert("點數不足，無法雙倍下注！");
+
         try {
            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'total'), { 
             totalPoints: increment(-extraCost),
             totalRedeemed: increment(extraCost)
           });
+          
           await addDoc(getPublicRef('submissions'), {
             description: `♠️ 21點：雙倍下注`,
             status: 'spent',
@@ -627,6 +662,7 @@
           const newDeck = [...bjDeck];
           const card = newDeck.pop();
           const newHand = [...bjPlayerHand, card];
+          
           let currentDHand = [...bjDealerHand];
           if (calculateHand(newHand) > 21) {
              setBjPlayerHand(newHand);
@@ -635,18 +671,17 @@
              setBjMessage('雙倍下注...但爆牌了！ 💸');
              return;
           }
+
           while (calculateHand(currentDHand) < 17) {
-            let dCard = newDeck.pop();
-            if (calculateHand([...currentDHand, dCard]) > 21) {
-               if (Math.random() < (settings.bjDealerLuck || 0)) dCard = newDeck.pop();
-            }
-            currentDHand.push(dCard);
+            currentDHand.push(newDeck.pop());
           }
+
           setBjDeck(newDeck);
           setBjPlayerHand(newHand);
           setBjDealerHand(currentDHand);
           setBjBet(bjBet + extraCost);
           finishBlackjack(newHand, currentDHand, bjBet + extraCost, false);
+
         } catch(e) { alert("雙倍下注失敗"); }
       };
 
@@ -655,15 +690,24 @@
         const dScore = calculateHand(dHand);
         let winAmount = 0;
         let msg = '';
-        const winMult = settings.bjWinMult || 2;
-        const pushMult = settings.bjPushMult || 1;
 
-        if (pScore > 21) { msg = '爆牌了！你輸了 💸'; } 
-        else if (isFiveCardCharlie) { msg = '過五關！你贏了！ 🎉'; winAmount = currentBet * winMult; } 
-        else if (dScore > 21) { msg = '莊家爆牌！你贏了！ 🎉'; winAmount = currentBet * winMult; } 
-        else if (pScore > dScore) { msg = '你贏了！ 🎉'; winAmount = currentBet * winMult; } 
-        else if (pScore === dScore) { msg = '平手 (Push) 🤝'; winAmount = currentBet * pushMult; } 
-        else { msg = '莊家贏了 💸'; }
+        if (pScore > 21) {
+          msg = '爆牌了！你輸了 💸';
+        } else if (isFiveCardCharlie) {
+          msg = '過五關！你贏了！ 🎉';
+          winAmount = currentBet * 2;
+        } else if (dScore > 21) {
+          msg = '莊家爆牌！你贏了！ 🎉';
+          winAmount = currentBet * 2;
+        } else if (pScore > dScore) {
+          msg = '你贏了！ 🎉';
+          winAmount = currentBet * 2;
+        } else if (pScore === dScore) {
+          msg = '平手 (Push) 🤝';
+          winAmount = currentBet;
+        } else {
+          msg = '莊家贏了 💸';
+        }
 
         setBjGameState('gameOver');
         setBjMessage(msg);
@@ -672,11 +716,12 @@
           try {
             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'total'), { 
               totalPoints: increment(winAmount),
-              totalIssued: increment(Math.max(0, winAmount - currentBet))
+              totalIssued: increment(winAmount - currentBet)
             });
+            
             await addDoc(getPublicRef('submissions'), {
               description: `♠️ 21點：獲勝獎勵 (${msg})`,
-              status: 'won', 
+              status: 'won',
               timestamp: serverTimestamp(),
               userId: user.uid,
               awardedPoints: winAmount
@@ -685,17 +730,91 @@
         }
       };
 
+      const handleUploadTask = async () => {
+        if (!desc.trim() || !selectedFile) return alert("請輸入說明並上傳照片 ☁️");
+        setIsUploading(true);
+        try {
+          const imgBase64 = await compressImage(selectedFile);
+          await addDoc(getPublicRef('submissions'), {
+            description: `📖 英文打卡：${desc}`, image: imgBase64, status: 'pending', timestamp: serverTimestamp(), userId: user.uid
+          });
+          setDesc(''); setSelectedFile(null); alert("打卡成功！等待店長審核");
+        } catch(e){ alert("失敗"); } finally { setIsUploading(false); }
+      };
+
+      const handleGoodDeedTask = async () => {
+        if (!deedDesc.trim() || !deedFile) return alert("請輸入說明並上傳照片 🌟");
+        setIsUploading(true);
+        try {
+          const imgBase64 = await compressImage(deedFile);
+          await addDoc(getPublicRef('submissions'), {
+            description: `🌟 好事打卡：${deedDesc}`, image: imgBase64, status: 'pending', timestamp: serverTimestamp(), userId: user.uid
+          });
+          setDeedDesc(''); setDeedFile(null); alert("提交成功！等待店長審核");
+        } catch(e){ alert("失敗"); } finally { setIsUploading(false); }
+      };
+
+      const handleWaterSubmit = async () => {
+        if (waterCount <= 0) return alert("請輸入有效的水量 💧");
+        setIsUploading(true); 
+        try {
+            await addDoc(getPublicRef('submissions'), {
+                description: `💧 喝水打卡：${waterCount}ml`,
+                image: "https://cdn-icons-png.flaticon.com/512/3105/3105807.png", 
+                status: 'pending',
+                timestamp: serverTimestamp(),
+                userId: user.uid
+            });
+            setWaterCount(250);
+            alert("喝水紀錄已送出！等待店長發點數 💧");
+        } catch(e) { alert("失敗"); } finally { setIsUploading(false); }
+      };
+
+      const handleApprove = async (sub, customPoints) => {
+        if (!customPoints || customPoints <= 0) return alert("請輸入有效的點數");
+        setIsProcessing(true);
+        const pts = parseFloat(customPoints); 
+        try {
+          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'submissions', sub.id), { status: 'approved', awardedPoints: pts });
+          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'total'), { 
+            totalPoints: increment(pts),
+            totalIssued: increment(pts)
+          });
+          setApprovalPoints(prev => ({...prev, [sub.id]: ''})); 
+          alert(`批准成功！已發放 ${pts} 點`);
+        } catch(e) { alert("失敗"); } finally { setIsProcessing(false); }
+      };
+
+      const handleDeductPoints = async () => {
+        if (!penaltyDesc.trim() || !penaltyAmount) return alert("請輸入原因與分數");
+        const pts = parseFloat(penaltyAmount);
+        setIsProcessing(true);
+        try {
+          await addDoc(getPublicRef('submissions'), {
+            description: `⚠️ 扣點：${penaltyDesc}`, status: 'deducted', awardedPoints: -pts, timestamp: serverTimestamp(), userId: user.uid
+          });
+          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'total'), { 
+            totalPoints: increment(-pts),
+            totalRedeemed: increment(pts) 
+          });
+          setPenaltyDesc(''); setPenaltyAmount(''); alert(`已扣除 ${pts} 點！`);
+        } catch (e) { alert("失敗"); } finally { setIsProcessing(false); }
+      };
+
       const handleLottery = async () => {
-        const cost = settings.lotteryCost || 5;
-        if (points < cost) return alert(`點數不足！需要 ${cost} 點`);
+        const cost = 5;
+        if (points < cost) return alert("點數不足！需要 5 點才能抽薯條 🍟");
         if (!confirm(`確定花費 ${cost} 點抽薯條嗎？`)) return;
+
         try {
           await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'total'), { 
             totalPoints: increment(-cost),
             totalRedeemed: increment(cost)
           });
-          const winChance = settings.lotteryProb || 0.1; 
+          
+          const winChance = settings.lotteryProb || 0.05;
           const isWin = Math.random() < winChance;
+
           if (isWin) {
             await addDoc(getPublicRef('submissions'), {
               description: `🍟 抽獎中獎：現炸薯條一份`, 
@@ -716,85 +835,65 @@
             });
             alert("💨 哎呀！差一點點，下次一定中！");
           }
-        } catch(e) { alert("抽獎失敗"); }
+        } catch(e) {
+          alert("抽獎失敗，請稍後再試");
+          console.error(e);
+        }
       };
 
-      const updateSettings = async (updates) => {
-        const newSettings = { ...settings, ...updates };
-        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), newSettings);
+      const handleVerifyCoupon = async (couponId) => {
+        if (!confirm('確認核銷這張券嗎？')) return;
+        try {
+          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'submissions', couponId), { status: 'verified' });
+          alert("核銷成功！✨");
+        } catch (e) { alert("失敗"); }
       };
 
-      // Other handlers (upload, deed, water, etc.) omitted for brevity but assumed present
-      const handleUploadTask = async () => {
-        if (!desc.trim() || !selectedFile) return alert("請輸入說明並上傳照片");
-        setIsUploading(true);
-        try {
-          const img = await compressImage(selectedFile);
-          await addDoc(getPublicRef('submissions'), { description: `📖 英文打卡：${desc}`, image: img, status: 'pending', timestamp: serverTimestamp(), userId: user.uid });
-          setDesc(''); setSelectedFile(null); alert("提交成功");
-        } catch(e){ alert("失敗"); } finally { setIsUploading(false); }
-      };
-      const handleGoodDeedTask = async () => {
-        if (!deedDesc.trim() || !deedFile) return alert("請輸入說明並上傳照片");
-        setIsUploading(true);
-        try {
-          const img = await compressImage(deedFile);
-          await addDoc(getPublicRef('submissions'), { description: `🌟 好事打卡：${deedDesc}`, image: img, status: 'pending', timestamp: serverTimestamp(), userId: user.uid });
-          setDeedDesc(''); setDeedFile(null); alert("提交成功");
-        } catch(e){ alert("失敗"); } finally { setIsUploading(false); }
-      };
-      const handleWaterSubmit = async () => {
-        if (waterCount <= 0) return alert("請輸入有效水量");
-        setIsUploading(true);
-        try {
-          await addDoc(getPublicRef('submissions'), { description: `💧 喝水打卡：${waterCount}ml`, image: "https://cdn-icons-png.flaticon.com/512/3105/3105807.png", status: 'pending', timestamp: serverTimestamp(), userId: user.uid });
-          setWaterCount(250); alert("紀錄已送出");
-        } catch(e){ alert("失敗"); } finally { setIsUploading(false); }
-      };
-      const handleApprove = async (sub, customPoints) => {
-        if (!customPoints) return alert("請輸入點數");
-        setIsProcessing(true);
-        const pts = parseFloat(customPoints);
-        try {
-          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'submissions', sub.id), { status: 'approved', awardedPoints: pts });
-          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'total'), { totalPoints: increment(pts), totalIssued: increment(pts) });
-          setApprovalPoints(prev => ({...prev, [sub.id]: ''})); alert("批准成功");
-        } catch(e){ alert("失敗"); } finally { setIsProcessing(false); }
-      };
-      const handleDeductPoints = async () => {
-        if (!penaltyDesc.trim() || !penaltyAmount) return alert("請輸入原因與點數");
-        const pts = parseFloat(penaltyAmount);
-        setIsProcessing(true);
-        try {
-          await addDoc(getPublicRef('submissions'), { description: `⚠️ 扣點：${penaltyDesc}`, status: 'deducted', awardedPoints: -pts, timestamp: serverTimestamp(), userId: user.uid });
-          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'total'), { totalPoints: increment(-pts), totalRedeemed: increment(pts) });
-          setPenaltyDesc(''); setPenaltyAmount(''); alert("扣點成功");
-        } catch(e){ alert("失敗"); } finally { setIsProcessing(false); }
-      };
       const handleAddRewardByAdmin = async () => {
         if (!adminRewardName || !adminRewardCost) return alert("資訊不全");
         setIsAddingReward(true);
         try {
           let img = "https://placehold.co/400x300/1e1e1e/d4af37?text=GIFT";
           if (adminRewardImage) img = await compressImage(adminRewardImage);
-          await addDoc(getPublicRef('rewards'), { name: adminRewardName, image: img, cost: parseInt(adminRewardCost), available: true, timestamp: serverTimestamp() });
-          setAdminRewardName(''); setAdminRewardCost(''); setAdminRewardImage(null); alert("上架成功");
+          await addDoc(getPublicRef('rewards'), {
+            name: adminRewardName, image: img, cost: parseInt(adminRewardCost), available: true, timestamp: serverTimestamp()
+          });
+          setAdminRewardName(''); setAdminRewardCost(''); setAdminRewardImage(null); alert("商品上架成功！🛒");
         } catch(e) { alert("失敗"); } finally { setIsAddingReward(false); }
       };
+
       const handleRedeem = async (reward) => {
-        if (points < Number(reward.cost)) return alert("點數不足");
-        if (!confirm(`確定兌換 ${reward.name}？`)) return;
+        if (points < Number(reward.cost)) return alert("點數不足 💎");
+        if (!confirm(`確定兌換「${reward.name}」？`)) return;
         try {
-          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'total'), { totalPoints: increment(-reward.cost), totalRedeemed: increment(reward.cost) });
-          await addDoc(getPublicRef('submissions'), { description: `🎁 已兌換：${reward.name}`, image: reward.image, status: 'redeemed', timestamp: serverTimestamp(), userId: user.uid, awardedPoints: -reward.cost });
-          alert("兌換成功");
-        } catch(e) { alert("失敗"); }
+          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'total'), { 
+            totalPoints: increment(-reward.cost),
+            totalRedeemed: increment(reward.cost)
+          });
+          await addDoc(getPublicRef('submissions'), {
+            description: `🎁 已兌換：${reward.name}`, image: reward.image, status: 'redeemed', timestamp: serverTimestamp(), userId: user.uid, awardedPoints: -reward.cost
+          });
+          alert("兌換成功！🎉");
+        } catch (e) { alert("失敗"); }
       };
+
+      const updateSettings = async (newAnnounce, newProb) => {
+        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), { 
+          announce: newAnnounce || settings.announce,
+          lotteryProb: newProb !== undefined ? newProb : settings.lotteryProb
+        });
+      };
+
+      const unreadCountReal = user ? notifications.filter(n => !n.readBy?.includes(user.uid)).length : 0;
+
+      // Placeholder grid creation
+      const placeholderGrid = Array.from({ length: 25 });
 
       if (loading) return null;
 
       return (
         <div className="max-w-md mx-auto shadow-2xl relative min-h-screen pb-24 sm:my-4 sm:border-2 sm:border-[#333] bg-[#121212] overflow-hidden flex flex-col no-scrollbar">
+          
           {/* Header */}
           <div className="vip-gradient p-5 pb-7 text-white shadow-lg shrink-0 z-10 relative">
             <div className="flex justify-between items-center mb-5">
@@ -803,80 +902,657 @@
                 <h1 className="text-xl font-bold tracking-widest uppercase italic gold-text-gradient">VIP CLUB</h1>
               </div>
               <div className="flex items-center gap-2">
-                <button onClick={() => setShowNotifModal(true)} className="relative p-2 bg-white/5 transition-all hover:bg-white/10 rounded-none"><Icon name="Bell" size={18} className="text-[#a3a3a3]" />{user && notifications.filter(n => !n.readBy?.includes(user.uid)).length > 0 && <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[8px] font-black w-4 h-4 flex items-center justify-center border border-[#121212] rounded-none">!</span>}</button>
-                <button onClick={() => isAdmin ? setIsAdmin(false) : setShowAdminLogin(true)} className="p-2 bg-white/5 hover:bg-white/10 rounded-none"><Icon name={isAdmin ? "LogOut" : "Lock"} size={18} className="text-[#a3a3a3]" /></button>
+                <button onClick={() => setShowNotifModal(true)} className="relative p-2 bg-white/5 transition-all hover:bg-white/10 rounded-none">
+                  <Icon name="Bell" size={18} className="text-[#a3a3a3]" />
+                  {unreadCountReal > 0 && <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[8px] font-black w-4 h-4 flex items-center justify-center border border-[#121212] rounded-none">!</span>}
+                </button>
+                <button onClick={() => isAdmin ? setIsAdmin(false) : setShowAdminLogin(true)} className="p-2 bg-white/5 hover:bg-white/10 rounded-none">
+                  <Icon name={isAdmin ? "LogOut" : "Lock"} size={18} className="text-[#a3a3a3]" />
+                </button>
               </div>
             </div>
-            {activeTab !== 'dashboard' && <div className="flex justify-center mb-6"><div className="glass-card px-8 py-3 flex items-center gap-4 shadow-[0_0_20px_rgba(212,175,55,0.2)]"><span className="text-4xl font-bold tracking-tight text-[#d4af37] drop-shadow-md">{parseFloat(points).toFixed(2)}</span><span className="text-[10px] font-bold text-[#888] uppercase tracking-[0.2em] border-l border-[#333] pl-4">Current<br/>Points</span></div></div>}
-            <div className="bg-[#1e1e1e] px-3 py-1.5 marquee mx-2 border border-[#333]"><span className="text-[11px] font-medium text-[#d4af37] tracking-wider">{announcement}</span></div>
+            
+            {activeTab !== 'dashboard' && (
+              <div className="flex justify-center mb-6">
+                <div className="glass-card px-8 py-3 flex items-center gap-4 shadow-[0_0_20px_rgba(212,175,55,0.2)]">
+                  <span className="text-4xl font-bold tracking-tight text-[#d4af37] drop-shadow-md">{parseFloat(points).toFixed(2)}</span>
+                  <span className="text-[10px] font-bold text-[#888] uppercase tracking-[0.2em] border-l border-[#333] pl-4">Current<br/>Points</span>
+                </div>
+              </div>
+            )}
+
+            <div className="bg-[#1e1e1e] px-3 py-1.5 marquee mx-2 border border-[#333]">
+              <span className="text-[11px] font-medium text-[#d4af37] tracking-wider">{announcement}</span>
+            </div>
           </div>
 
           {/* Admin Login Modal */}
-          {showAdminLogin && !isAdmin && <div className="absolute inset-0 bg-black/80 z-[60] flex items-center justify-center animate-in backdrop-blur-sm"><div className="bg-[#1e1e1e] p-6 shadow-2xl w-72 border border-[#333] relative"><button onClick={() => setShowAdminLogin(false)} className="absolute top-2 right-2 text-[#666] p-2 hover:text-white">✕</button><p className="text-[10px] font-bold mb-6 text-[#888] uppercase tracking-widest flex items-center gap-2 justify-center"><Icon name="Lock" size={14}/> Security Access</p><input type="password" placeholder="Passcode" className="w-full bg-[#121212] border border-[#333] p-3 mb-4 text-center text-lg text-white focus:border-[#d4af37] outline-none tracking-[0.5em]" value={adminPass} onChange={(e) => setAdminPass(e.target.value)} /><button onClick={checkAdmin} className="w-full btn-action py-3 text-xs shadow-lg">UNLOCK SYSTEM</button></div></div>}
+          {showAdminLogin && !isAdmin && (
+            <div className="absolute inset-0 bg-black/80 z-[60] flex items-center justify-center animate-in backdrop-blur-sm">
+              <div className="bg-[#1e1e1e] p-6 shadow-2xl w-72 border border-[#333] relative">
+                <button onClick={() => setShowAdminLogin(false)} className="absolute top-2 right-2 text-[#666] p-2 hover:text-white">✕</button>
+                <p className="text-[10px] font-bold mb-6 text-[#888] uppercase tracking-widest flex items-center gap-2 justify-center">
+                   <Icon name="Lock" size={14}/> Security Access
+                </p>
+                <input 
+                  type="password" 
+                  placeholder="Passcode" 
+                  className="w-full bg-[#121212] border border-[#333] p-3 mb-4 text-center text-lg text-white focus:border-[#d4af37] outline-none tracking-[0.5em]" 
+                  value={adminPass} 
+                  onChange={(e) => setAdminPass(e.target.value)} 
+                />
+                <button onClick={checkAdmin} className="w-full btn-action py-3 text-xs shadow-lg">UNLOCK SYSTEM</button>
+              </div>
+            </div>
+          )}
 
-          {/* Notif Modal */}
-          {showNotifModal && <div className="absolute inset-0 bg-[#121212]/95 z-50 p-6 animate-in flex flex-col"><div className="flex justify-between items-center mb-6 border-b border-[#333] pb-4"><h2 className="text-lg font-bold text-[#e5e5e5] uppercase tracking-widest flex items-center gap-2"><Icon name="Bell" className="text-[#d4af37]"/> 訊息中心</h2><button onClick={() => setShowNotifModal(false)} className="p-2 text-[#888]">關閉 X</button></div><div className="flex-1 overflow-y-auto space-y-4">{notifications.length === 0 && <p className="text-center text-[#444] mt-10">目前沒有新訊息</p>}{notifications.map(n => <div key={n.id} className="p-5 bg-[#1e1e1e] border border-[#d4af37]/50 relative"><button onClick={(e) => deleteItem(e, 'notifications', n.id, n.title)} className="absolute top-4 right-4 text-[#444] hover:text-red-500"><Icon name="Trash2" size={14} /></button><p className="font-bold text-sm text-[#e5e5e5] mb-2">{n.title}</p><p className="text-xs text-[#a3a3a3] leading-relaxed">{n.body}</p></div>)}</div></div>}
+          {/* 通知彈窗 */}
+          {showNotifModal && (
+            <div className="absolute inset-0 bg-[#121212]/95 z-50 p-6 animate-in flex flex-col">
+              <div className="flex justify-between items-center mb-6 border-b border-[#333] pb-4">
+                <h2 className="text-lg font-bold text-[#e5e5e5] uppercase tracking-widest flex items-center gap-2"><Icon name="Bell" className="text-[#d4af37]"/> 訊息中心</h2>
+                <button onClick={() => setShowNotifModal(false)} className="p-2 text-[#888]">關閉 X</button>
+              </div>
+              <div className="flex-1 overflow-y-auto space-y-4">
+                {notifications.length === 0 && <p className="text-center text-[#444] mt-10">目前沒有新訊息</p>}
+                {notifications.map(n => (
+                  <div key={n.id} className={`p-5 bg-[#1e1e1e] border relative ${n.readBy?.includes(user.uid) ? 'opacity-50 border-[#333]' : 'border-[#d4af37]/50'}`}>
+                    <button onClick={(e) => deleteItem(e, 'notifications', n.id, n.title)} className="absolute top-4 right-4 text-[#444] hover:text-red-500"><Icon name="Trash2" size={14} /></button>
+                    <p className="font-bold text-sm text-[#e5e5e5] mb-2">{n.title}</p>
+                    <p className="text-xs text-[#a3a3a3] leading-relaxed">{n.body}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 pt-4 border-t border-[#333]">
+                 <button onClick={() => { if(confirm('清除所有通知？')) notifications.forEach(n => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notifications', n.id))); }} className="w-full text-xs text-[#444] py-3 border border-[#333] hover:bg-[#222]">清除所有訊息</button>
+              </div>
+            </div>
+          )}
 
           <div className="p-5 flex-1 overflow-y-auto no-scrollbar">
-            {activeTab === 'dashboard' && <div className="space-y-8 animate-in"><div className="bg-gradient-to-br from-[#1e1e1e] to-[#000] p-8 border border-[#333] relative overflow-hidden shadow-2xl h-56 flex flex-col justify-between"><div className="absolute top-0 right-0 w-32 h-32 bg-[#d4af37]/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div><div className="flex justify-between items-start z-10"><div><p className="text-[10px] text-[#666] tracking-[0.3em] font-bold mb-1">MEMBER CARD</p><h2 className="text-xl font-bold text-white tracking-widest italic">VIP LOUNGE</h2></div><Icon name="Point" size={32} className="text-[#d4af37]" /></div><div className="z-10"><p className="text-xs text-[#888] mb-1">TOTAL BALANCE</p><h1 className="text-5xl font-bold text-[#d4af37] tracking-tighter">{parseFloat(points).toFixed(2)}</h1></div><div className="flex justify-between items-end z-10 border-t border-[#333] pt-4"><p className="text-[10px] text-[#444] font-mono">ID: {user?.uid?.substring(0,8).toUpperCase()}</p><p className="text-[10px] text-[#d4af37] font-bold">DIAMOND TIER</p></div></div><div className="grid grid-cols-2 gap-4"><div onClick={() => setActiveTab('home')} className="bg-[#1e1e1e] p-6 border border-[#333] hover:border-[#d4af37] transition-all cursor-pointer group h-32 flex flex-col justify-between"><Icon name="Plus" size={28} className="text-[#666] group-hover:text-[#d4af37] transition-colors" /><div><h3 className="font-bold text-[#e5e5e5] text-sm">賺取點數</h3><p className="text-[10px] text-[#666] mt-1">打卡與紀錄</p></div></div><div onClick={() => setActiveTab('games')} className="bg-[#1e1e1e] p-6 border border-[#333] hover:border-[#d4af37] transition-all cursor-pointer group h-32 flex flex-col justify-between"><Icon name="Cards" size={28} className="text-[#666] group-hover:text-[#d4af37] transition-colors" /><div><h3 className="font-bold text-[#e5e5e5] text-sm">遊戲大廳</h3><p className="text-[10px] text-[#666] mt-1">Mines 與 21點</p></div></div></div></div>}
+            
+            {/* 0. 新增：儀表板首頁 (Dashboard) */}
+            {activeTab === 'dashboard' && (
+              <div className="space-y-8 animate-in">
+                {/* 數位會員卡 */}
+                <div className="bg-gradient-to-br from-[#1e1e1e] to-[#000] p-8 border border-[#333] relative overflow-hidden shadow-2xl h-56 flex flex-col justify-between">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-[#d4af37]/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+                  <div className="flex justify-between items-start z-10">
+                    <div>
+                      <p className="text-[10px] text-[#666] tracking-[0.3em] font-bold mb-1">MEMBER CARD</p>
+                      <h2 className="text-xl font-bold text-white tracking-widest italic">VIP LOUNGE</h2>
+                    </div>
+                    <Icon name="Point" size={32} className="text-[#d4af37]" />
+                  </div>
+                  <div className="z-10">
+                    <p className="text-xs text-[#888] mb-1">TOTAL BALANCE</p>
+                    <h1 className="text-5xl font-bold text-[#d4af37] tracking-tighter">{parseFloat(points).toFixed(2)}</h1>
+                  </div>
+                  <div className="flex justify-between items-end z-10 border-t border-[#333] pt-4">
+                    <p className="text-[10px] text-[#444] font-mono">ID: {user?.uid?.substring(0,8).toUpperCase()}</p>
+                    <p className="text-[10px] text-[#d4af37] font-bold">DIAMOND TIER</p>
+                  </div>
+                </div>
 
-            {activeTab === 'games' && <div className="space-y-6 animate-in flex flex-col items-center justify-start h-full pb-10">{activeGame === null && <div className="w-full space-y-4"><h2 className="text-lg font-bold text-[#e5e5e5] px-2 mb-4">選擇遊戲</h2><div onClick={() => setActiveGame('blackjack')} className="bg-[#1e1e1e] border border-[#333] p-6 flex items-center justify-between cursor-pointer hover:border-[#d4af37] transition-all"><div className="flex items-center gap-4"><div className="w-12 h-12 bg-[#222] flex items-center justify-center rounded-full border border-[#333]"><Icon name="Cards" size={24} className="text-[#d4af37]"/></div><div><h3 className="font-bold text-[#e5e5e5]">二十一點 (21)</h3><p className="text-[10px] text-[#666]">與莊家對決，過五關贏雙倍</p></div></div><div className="text-right"><p className="text-xs font-bold text-[#d4af37]">{settings.bjCost} P</p><p className="text-[9px] text-[#444]">ENTRY</p></div></div><div onClick={() => setActiveGame('mines')} className="bg-[#1e1e1e] border border-[#333] p-6 flex items-center justify-between cursor-pointer hover:border-[#d4af37] transition-all"><div className="flex items-center gap-4"><div className="w-12 h-12 bg-[#222] flex items-center justify-center rounded-full border border-[#333]"><Icon name="Bomb" size={24} className="text-red-500"/></div><div><h3 className="font-bold text-[#e5e5e5]">Mines (掃雷)</h3><p className="text-[10px] text-[#666]">避開地雷，累積倍率</p></div></div><div className="text-right"><p className="text-xs font-bold text-[#d4af37]">{settings.minesCost} P</p><p className="text-[9px] text-[#444]">ENTRY</p></div></div></div>}{activeGame === 'mines' && <div className="w-full flex flex-col items-center gap-6 animate-in"><button onClick={() => { if(minesStatus === 'playing') return; setActiveGame(null); }} className="self-start text-[#666] text-xs hover:text-white mb-2">← 返回大廳</button><div className="w-full bg-[#1e1e1e] p-6 border border-[#333] shadow-lg flex flex-col gap-4"><div className="flex justify-between items-center border-b border-[#333] pb-3"><h2 className="text-lg font-bold text-[#d4af37] flex items-center gap-2"><Icon name="Bomb" size={20}/> MINES</h2><div className="text-right"><span className="text-xs text-[#666] block">Bet: {settings.minesCost}</span><span className="text-xs font-bold text-[#f1c40f]">x{minesMultiplier.toFixed(2)}</span>{minesStatus === 'playing' && <span className="text-sm font-bold text-[#d4af37] block">Win: {minesPotentialWin.toFixed(2)}</span>}</div></div>{minesStatus === 'idle' || minesStatus === 'cashed_out' || minesStatus === 'exploded' ? <div className="space-y-4"><div className="flex justify-between items-center"><span className="text-xs text-[#888]">地雷數量: {minesCount}</span><div className="flex gap-1">{[1, 3, 5, 10, 24].map(num => (<button key={num} onClick={() => setMinesCount(num)} className={`px-3 py-1 text-[10px] border ${minesCount === num ? 'bg-[#d4af37] text-black border-[#d4af37]' : 'bg-transparent text-[#666] border-[#333]'}`}>{num}</button>))}</div></div><button onClick={startMines} disabled={points < settings.minesCost} className="btn-action w-full py-4 text-sm font-bold tracking-widest shadow-[0_0_30px_rgba(241,196,15,0.3)]">開始遊戲 (-{settings.minesCost} P)</button></div> : <div className="text-center"><p className="text-xs text-[#e5e5e5] mb-2">Current Multiplier: <span className="text-[#d4af37] font-bold">x{minesMultiplier.toFixed(2)}</span></p><button onClick={cashOutMines} disabled={minesMultiplier === 1.0} className={`w-full py-3 text-xs font-bold transition-all ${minesMultiplier > 1 ? 'btn-action' : 'bg-[#333] text-[#666] cursor-not-allowed'}`}>收手 (Cashout {minesPotentialWin.toFixed(2)})</button></div>}<div className="mines-grid mt-4">{minesGrid.length > 0 ? minesGrid.map((tile, i) => <div key={i} onClick={() => clickTile(i)} className={`mine-tile ${tile.revealed ? (tile.isMine ? 'mine' : 'gem') : ''}`}>{tile.revealed && (<div className="content">{tile.isMine ? <Icon name="Bomb" size={24} className="text-[#e74c3c]" /> : <Icon name="Diamond" size={24} className="text-[#2ecc71]" />}</div>)}</div>) : Array(25).fill(null).map((_, i) => <div key={i} className="mine-tile opacity-50"></div>)}</div>{minesStatus === 'exploded' && <p className="text-center text-red-500 font-bold text-sm mt-2">BOOM! 遊戲結束</p>}{minesStatus === 'cashed_out' && <p className="text-center text-[#2ecc71] font-bold text-sm mt-2">恭喜贏取 {minesPotentialWin.toFixed(2)} P!</p>}</div></div>}{activeGame === 'blackjack' && <div className="w-full bg-[#1e1e1e] p-6 border border-[#333] shadow-lg flex flex-col gap-4"><div className="flex justify-between items-center border-b border-[#333] pb-3"><div className="flex items-center gap-2"><button onClick={() => setActiveGame(null)} className="text-[#666] hover:text-white mr-2">←</button><h2 className="text-lg font-bold text-[#d4af37] flex items-center gap-2"><Icon name="Cards" size={20}/> BLACKJACK</h2></div><span className="text-xs text-[#666]">Bet: {bjBet} pts</span></div><div className="flex flex-col items-center gap-2"><p className="text-[10px] text-[#888] uppercase tracking-widest">Dealer</p><div className="flex gap-2">{bjGameState === 'betting' ? <div className="w-12 h-16 border border-[#333] rounded bg-[#222] flex items-center justify-center text-[#444] text-xs">Empty</div> : bjDealerHand.map((card, i) => <div key={i} className={`card ${card.color} ${i === 0 && bjGameState === 'playing' ? 'hidden' : ''}`}>{i === 0 && bjGameState === 'playing' ? '' : <><span className="val-top">{card.value}<br/>{card.suit}</span><span className="suit">{card.suit}</span><span className="val-bottom">{card.value}<br/>{card.suit}</span></>}</div>)}</div><p className="text-xs text-[#e5e5e5] font-mono h-4">{bjGameState !== 'betting' && bjGameState !== 'playing' ? calculateHand(bjDealerHand) : ''}</p></div><div className="h-8 flex items-center justify-center"><span className="text-sm font-bold text-[#d4af37] animate-bounce">{bjMessage}</span></div><div className="flex flex-col items-center gap-2"><p className="text-xs text-[#e5e5e5] font-mono h-4">{bjGameState !== 'betting' ? calculateHand(bjPlayerHand) : ''}</p><div className="flex gap-2">{bjGameState === 'betting' ? <div className="w-12 h-16 border border-[#333] rounded bg-[#222] flex items-center justify-center text-[#444] text-xs">Empty</div> : bjPlayerHand.map((card, i) => <div key={i} className={`card ${card.color}`}><span className="val-top">{card.value}<br/>{card.suit}</span><span className="suit">{card.suit}</span><span className="val-bottom">{card.value}<br/>{card.suit}</span></div>)}</div><p className="text-[10px] text-[#888] uppercase tracking-widest">You</p></div><div className="grid grid-cols-2 gap-3 mt-2">{bjGameState === 'betting' || bjGameState === 'gameOver' ? <button onClick={startBlackjack} className="col-span-2 btn-action py-3 text-xs tracking-widest">發牌 (Deal) - {settings.bjCost} P</button> : <><button onClick={hitBlackjack} className="bg-[#333] text-white py-3 text-xs font-bold border border-[#444] hover:bg-[#444]">要牌 (Hit)</button><button onClick={standBlackjack} className="btn-action py-3 text-xs font-bold">停牌 (Stand)</button>{bjPlayerHand.length === 2 && <button onClick={doubleBlackjack} className="col-span-2 bg-[#d4af37]/20 text-[#d4af37] border border-[#d4af37] py-3 text-xs font-bold hover:bg-[#d4af37]/40">雙倍下注 (Double) - {settings.bjCost} P</button>}</>}</div></div>}{activeGame !== null && <div className="w-full space-y-3"><h3 className="text-[10px] font-bold text-[#666] uppercase tracking-[0.2em] px-2 flex items-center gap-2"><Icon name="History" size={14} className="text-[#d4af37]"/> 遊戲紀錄</h3><div className="bg-[#1e1e1e] border border-[#333] overflow-hidden max-h-48 overflow-y-auto no-scrollbar">{submissions.filter(s => s.description && (s.description.includes('21點') || s.description.includes('Mines'))).length === 0 ? <p className="text-center text-[11px] text-[#444] py-6 italic">尚無對戰紀錄</p> : <div className="flex flex-col">{submissions.filter(s => s.description && (s.description.includes('21點') || s.description.includes('Mines'))).map(item => <div key={item.id} className="log-item p-3 flex justify-between items-center"><div className="flex flex-col min-w-0"><span className="text-[9px] text-[#666] font-bold uppercase">{item.timestamp?.toDate ? item.timestamp.toDate().toLocaleTimeString() : 'Just now'}</span><p className="text-xs font-medium text-[#ccc] truncate pr-2">{item.description}</p></div><div className={`text-sm font-bold shrink-0 ${item.awardedPoints > 0 ? 'text-[#2ed573]' : 'text-[#ff4757]'}`}>{item.awardedPoints > 0 ? `+${item.awardedPoints.toFixed(2)}` : item.awardedPoints}</div></div>)}</div>}</div></div>}</div>}
+                {/* 快速入口 */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div onClick={() => setActiveTab('home')} className="bg-[#1e1e1e] p-6 border border-[#333] hover:border-[#d4af37] transition-all cursor-pointer group h-32 flex flex-col justify-between">
+                    <Icon name="Plus" size={28} className="text-[#666] group-hover:text-[#d4af37] transition-colors" />
+                    <div>
+                      <h3 className="font-bold text-[#e5e5e5] text-sm">賺取點數</h3>
+                      <p className="text-[10px] text-[#666] mt-1">打卡與紀錄</p>
+                    </div>
+                  </div>
+                  <div onClick={() => setActiveTab('games')} className="bg-[#1e1e1e] p-6 border border-[#333] hover:border-[#d4af37] transition-all cursor-pointer group h-32 flex flex-col justify-between">
+                    <Icon name="Cards" size={28} className="text-[#666] group-hover:text-[#d4af37] transition-colors" />
+                    <div>
+                      <h3 className="font-bold text-[#e5e5e5] text-sm">遊戲大廳</h3>
+                      <p className="text-[10px] text-[#666] mt-1">Mines 與 21點</p>
+                    </div>
+                  </div>
+                </div>
 
-            {activeTab === 'home' && <div className="space-y-6 animate-in"><div className="bg-[#1e1e1e] p-6 border border-[#333] shadow-lg relative overflow-hidden"><div className="absolute top-0 right-0 w-24 h-24 bg-[#d4af37]/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"></div><h3 className="font-bold text-[#e5e5e5] mb-5 flex gap-2 items-center tracking-wide"><Icon name="Sparkles" size={18} className="text-[#f1c40f]"/> 🌟 好事打卡區</h3><textarea className="w-full bg-[#121212] p-4 border border-[#333] text-sm min-h-[90px] outline-none focus:border-[#f1c40f] transition-all text-[#e5e5e5]" placeholder="今天做了什麼很棒的事情..." value={deedDesc} onChange={(e) => setDeedDesc(e.target.value)} /><div className="flex gap-3 mt-5"><label className={`flex-[1.5] cursor-pointer py-3.5 flex items-center justify-center border transition-all ${deedFile ? 'border-[#f1c40f] bg-[#f1c40f]/10 text-[#f1c40f]' : 'border-[#333] bg-[#121212] text-[#666] hover:border-[#555]'}`}><Icon name="Image" size={16} className="mr-2"/> <span className="text-xs font-bold">{deedFile ? '已選擇' : '上傳照片'}</span><input type="file" accept="image/*" className="hidden" onChange={(e) => setDeedFile(e.target.files[0])} /></label><button onClick={handleGoodDeedTask} disabled={isUploading} className="flex-1 btn-action py-3.5 text-xs bg-gradient-to-r from-[#f1c40f] to-[#f39c12]">提交好事</button></div></div><div className="bg-[#1e1e1e] p-6 border border-[#333] shadow-lg relative overflow-hidden"><h3 className="font-bold text-[#e5e5e5] mb-5 flex gap-2 items-center tracking-wide"><Icon name="Book" size={18} className="text-[#d4af37]"/> 英文打卡區</h3><textarea className="w-full bg-[#121212] p-4 border border-[#333] text-sm min-h-[90px] outline-none focus:border-[#d4af37] transition-all text-[#e5e5e5]" placeholder="今天讀了什麼英文..." value={desc} onChange={(e) => setDesc(e.target.value)} /><div className="flex gap-3 mt-5"><label className={`flex-[1.5] cursor-pointer py-3.5 flex items-center justify-center border transition-all ${selectedFile ? 'border-[#d4af37] bg-[#d4af37]/10 text-[#d4af37]' : 'border-[#333] bg-[#121212] text-[#666] hover:border-[#555]'}`}><Icon name="Image" size={16} className="mr-2"/> <span className="text-xs font-bold">{selectedFile ? '已選擇' : '上傳證明'}</span><input type="file" accept="image/*" className="hidden" onChange={(e) => setSelectedFile(e.target.files[0])} /></label><button onClick={handleUploadTask} disabled={isUploading} className="flex-1 btn-action py-3.5 text-xs">提交打卡</button></div></div><div className="bg-[#1e1e1e] p-6 border border-[#333] shadow-lg relative overflow-hidden group"><div className="absolute -right-6 -top-6 text-[#d4af37]/10 transform rotate-12 group-hover:rotate-0 transition-all duration-700"><Icon name="Droplet" size={120} /></div><h3 className="font-bold text-[#e5e5e5] mb-6 flex gap-2 items-center tracking-wide relative z-10"><Icon name="Droplet" size={18} className="text-[#3498db]"/> 喝水打卡區</h3><div className="flex flex-col items-center justify-center mb-6 relative z-10"><div className="text-5xl font-bold text-[#3498db] mb-1 font-mono">{waterCount}<span className="text-lg ml-1 text-[#666]">ml</span></div><p className="text-[10px] text-[#666] tracking-widest uppercase">本次攝取量</p></div><div className="grid grid-cols-4 gap-2 mb-6 relative z-10"><button onClick={() => setWaterCount(Math.max(0, waterCount - 100))} className="p-2 border border-[#333] text-[#666] hover:text-white hover:border-[#666] flex justify-center"><Icon name="Minus" size={16}/></button><button onClick={() => setWaterCount(waterCount + 50)} className="p-2 border border-[#333] text-[#3498db] font-bold text-xs hover:bg-[#3498db]/10">+50</button><button onClick={() => setWaterCount(waterCount + 100)} className="p-2 border border-[#333] text-[#3498db] font-bold text-xs hover:bg-[#3498db]/10">+100</button><button onClick={() => setWaterCount(waterCount + 250)} className="p-2 border border-[#333] text-[#3498db] font-bold text-xs hover:bg-[#3498db]/10">+250</button></div><button onClick={handleWaterSubmit} disabled={isUploading} className="w-full py-4 bg-[#3498db] text-white font-bold text-xs tracking-widest shadow-[0_4px_20px_rgba(52,152,219,0.3)] hover:shadow-[0_4px_30px_rgba(52,152,219,0.5)] transition-all relative z-10 active:scale-95">送出喝水紀錄</button></div></div>}
+                {/* 系統介紹 */}
+                <div className="border-t border-[#333] pt-6">
+                  <h3 className="text-xs font-bold text-[#666] mb-4 tracking-widest">SYSTEM STATUS</h3>
+                  <div className="flex gap-4 overflow-x-auto no-scrollbar">
+                    <div className="bg-[#111] p-4 border border-[#222] min-w-[120px] flex-shrink-0">
+                      <p className="text-[10px] text-[#444]">ISSUED</p>
+                      <p className="text-lg font-bold text-[#e5e5e5]">{stats.totalIssued.toFixed(2)}</p>
+                    </div>
+                    <div className="bg-[#111] p-4 border border-[#222] min-w-[120px] flex-shrink-0">
+                      <p className="text-[10px] text-[#444]">REDEEMED</p>
+                      <p className="text-lg font-bold text-[#e5e5e5]">{stats.totalRedeemed.toFixed(2)}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
-            {activeTab === 'rewards' && <div className="space-y-6 animate-in"><div className="space-y-4"><h2 className="font-bold text-[#e5e5e5] text-lg flex gap-2 items-center px-1 mb-2"><Icon name="Store" className="text-[#d4af37]" size={20}/> 尊榮兌換商店</h2>{rewards.length === 0 && <p className="text-center text-[#666] py-10 italic">目前商店沒有商品上架</p>}{rewards.map(r => <div key={r.id} className="bg-[#1e1e1e] border border-[#333] shadow-lg flex h-36 group overflow-hidden relative">{isAdmin && <button onClick={(e) => deleteItem(e, 'rewards', r.id, r.name)} className="absolute top-2 right-2 z-20 bg-black/50 backdrop-blur-md p-2 text-[#ccc] hover:text-red-500 transition-all"><Icon name="Trash2" size={14}/></button>}<div className="w-2/5 bg-[#121212] relative shrink-0 overflow-hidden m-0">{r.image && <img src={r.image} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110 opacity-80" />}{!r.available && <div className="absolute inset-0 flex items-center justify-center bg-black/80 text-[#d4af37] text-[10px] font-bold tracking-widest">補貨中</div>}</div><div className="flex-1 p-5 pl-4 flex flex-col justify-between min-w-0"><div><h4 className="text-sm font-bold text-[#e5e5e5] truncate pr-6 leading-tight">{r.name}</h4>{r.available && <p className="text-[10px] text-[#d4af37] font-bold mt-1 uppercase tracking-widest">{r.cost} P</p>}</div><button onClick={() => r.available && handleRedeem(r)} disabled={!r.available || points < Number(r.cost)} className={`w-full py-2.5 text-[10px] font-bold transition-all ${r.available && points >= Number(r.cost) ? 'btn-action' : 'bg-[#333] text-[#666]'}`}>{r.available ? (points >= Number(r.cost) ? '立即兌換' : '點數不足') : '等候定價'}</button></div></div>)}</div></div>}
+            {/* Game Tab (Replaces old Blackjack tab) */}
+            {activeTab === 'games' && (
+              <div className="space-y-6 animate-in flex flex-col items-center justify-start h-full pb-10">
+                {activeGame === null && (
+                  <div className="w-full space-y-4">
+                    <h2 className="text-lg font-bold text-[#e5e5e5] px-2 mb-4">選擇遊戲</h2>
+                    
+                    <div onClick={() => setActiveGame('blackjack')} className="bg-[#1e1e1e] border border-[#333] p-6 flex items-center justify-between cursor-pointer hover:border-[#d4af37] transition-all">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-[#222] flex items-center justify-center rounded-full border border-[#333]">
+                          <Icon name="Cards" size={24} className="text-[#d4af37]"/>
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-[#e5e5e5]">二十一點 (21)</h3>
+                          <p className="text-[10px] text-[#666]">與莊家對決，過五關贏雙倍</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs font-bold text-[#d4af37]">0.25 P</p>
+                        <p className="text-[9px] text-[#444]">ENTRY</p>
+                      </div>
+                    </div>
 
-            {activeTab === 'lottery' && <div className="space-y-6 animate-in flex flex-col items-center justify-center h-full pb-10"><div className="w-full bg-[#1e1e1e] p-8 border border-[#333] shadow-lg text-center space-y-6"><div className="text-6xl animate-float">🍟</div><div><h2 className="text-2xl font-bold text-[#d4af37] uppercase tracking-widest mb-2">LUCKY DRAW</h2><p className="text-[#888] text-xs">花費 {settings.lotteryCost || 5} 點，試試手氣抽薯條</p><p className="text-[10px] text-[#444] mt-2">目前中獎機率: {Math.round((settings.lotteryProb || 0.1) * 100)}%</p></div><div className="w-full border-t border-[#333] my-4"></div><button onClick={handleLottery} className="w-full btn-action py-5 text-sm tracking-[0.2em] shadow-[0_0_30px_rgba(212,175,55,0.2)] hover:shadow-[0_0_50px_rgba(212,175,55,0.4)] transition-all">立即抽獎 (-{settings.lotteryCost || 5} P)</button></div><p className="text-[10px] text-[#444] mt-4">中獎後請至「集點 > 兌換券」查看</p></div>}
+                    <div onClick={() => setActiveGame('mines')} className="bg-[#1e1e1e] border border-[#333] p-6 flex items-center justify-between cursor-pointer hover:border-[#d4af37] transition-all">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-[#222] flex items-center justify-center rounded-full border border-[#333]">
+                          <Icon name="Bomb" size={24} className="text-red-500"/>
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-[#e5e5e5]">Mines (掃雷)</h3>
+                          <p className="text-[10px] text-[#666]">避開地雷，累積倍率</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs font-bold text-[#d4af37]">5.00 P</p>
+                        <p className="text-[9px] text-[#444]">ENTRY</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
-            {activeTab === 'admin' && isAdmin && (
-              <div className="space-y-8 pb-10 animate-in">
-                {/* 1. 待審核任務 */}
-                <section className="space-y-4">
-                  <h3 className="text-[12px] font-bold text-[#e5e5e5] uppercase tracking-[0.2em] px-2 flex items-center gap-2 border-l-4 border-[#f1c40f] pl-3"><Icon name="Check" size={16} className="text-[#f1c40f]"/> 待審核任務</h3>
-                  {submissions.filter(s => s.status === 'pending').length === 0 ? <div className="bg-[#1e1e1e] border border-[#333] border-dashed rounded p-8 text-center"><p className="text-[#666] text-xs">目前沒有待審核的任務</p></div> : <div className="space-y-4">{submissions.filter(s => s.status === 'pending').map(s => <div key={s.id} className="bg-[#1e1e1e] p-4 border border-[#333] shadow-lg relative"><button onClick={(e) => deleteItem(e, 'submissions', s.id, '此申請')} className="absolute top-2 right-2 text-[#666] hover:text-red-500 p-2 z-10 hover:bg-[#333]/50 transition-colors"><Icon name="Trash2" size={16} /></button><div className="flex gap-4 pr-6 mb-3">{s.image && <div className="w-20 h-20 bg-black shrink-0 border border-[#333] overflow-hidden"><img src={s.image} className="w-full h-full object-cover" /></div>}<div className="flex-1 min-w-0"><p className="text-[10px] text-[#888] mb-1 font-mono">{s.timestamp?.toDate ? s.timestamp.toDate().toLocaleString() : 'Just now'}</p><p className="text-sm font-bold text-[#e5e5e5] break-words leading-snug">{s.description}</p></div></div><div className="flex items-center gap-2 pt-3 border-t border-[#333]/50"><input type="number" placeholder="給予點數" className="flex-1 bg-[#121212] border border-[#333] p-3 text-sm text-white outline-none focus:border-[#d4af37]" value={approvalPoints[s.id] || ''} onChange={(e) => setApprovalPoints({...approvalPoints, [s.id]: e.target.value})} /><button onClick={() => handleApprove(s, approvalPoints[s.id])} disabled={isProcessing} className="btn-action px-6 py-3 text-xs font-bold">批准發放</button></div></div>)}</div>}
-                </section>
+                {activeGame === 'mines' && (
+                  <div className="w-full flex flex-col items-center gap-6 animate-in">
+                    <button onClick={() => { if(minesStatus === 'playing') return; setActiveGame(null); }} className="self-start text-[#666] text-xs hover:text-white mb-2">← 返回大廳</button>
+                    
+                    <div className="w-full bg-[#1e1e1e] p-6 border border-[#333] shadow-lg flex flex-col gap-4">
+                      <div className="flex justify-between items-center border-b border-[#333] pb-3">
+                        <h2 className="text-lg font-bold text-[#d4af37] flex items-center gap-2"><Icon name="Bomb" size={20}/> MINES</h2>
+                        <div className="text-right">
+                          <span className="text-xs text-[#666] block">Bet: 5.00</span>
+                          {minesStatus === 'playing' && <span className="text-sm font-bold text-[#d4af37]">Profit: {minesPotentialWin.toFixed(2)}</span>}
+                        </div>
+                      </div>
 
-                {/* 2. 遊戲參數設定 */}
-                <section className="space-y-4">
-                  <h3 className="text-[12px] font-bold text-[#e5e5e5] uppercase tracking-[0.2em] px-2 flex items-center gap-2 border-l-4 border-[#3498db] pl-3"><Icon name="Chart" size={16} className="text-[#3498db]"/> 遊戲參數設定</h3>
+                      {/* Mines Controls */}
+                      {minesStatus === 'idle' || minesStatus === 'cashed_out' || minesStatus === 'exploded' ? (
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs text-[#888]">地雷數量: {minesCount}</span>
+                            <div className="flex gap-1">
+                              {[1, 3, 5, 10, 24].map(num => (
+                                <button 
+                                  key={num} 
+                                  onClick={() => setMinesCount(num)}
+                                  className={`px-3 py-1 text-[10px] border ${minesCount === num ? 'bg-[#d4af37] text-black border-[#d4af37]' : 'bg-transparent text-[#666] border-[#333]'}`}
+                                >
+                                  {num}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          
+                          <button onClick={startMines} disabled={points < 5} className="btn-action w-full py-4 text-sm font-bold tracking-widest shadow-[0_0_30px_rgba(241,196,15,0.3)]">
+                            開始遊戲 (-5.00 P)
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="text-center">
+                          <p className="text-xs text-[#e5e5e5] mb-2">Current Multiplier: <span className="text-[#d4af37] font-bold">x{minesMultiplier.toFixed(2)}</span></p>
+                          <button 
+                            onClick={cashOutMines} 
+                            disabled={minesMultiplier === 1.0} 
+                            className={`w-full py-3 text-xs font-bold transition-all ${minesMultiplier > 1 ? 'btn-action' : 'bg-[#333] text-[#666] cursor-not-allowed'}`}
+                          >
+                            收手 (Cashout {minesPotentialWin.toFixed(2)})
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Mines Grid */}
+                      <div className="mines-grid mt-4">
+                        {minesGrid.length > 0 ? minesGrid.map((tile, i) => (
+                          <div 
+                            key={i} 
+                            onClick={() => clickTile(i)}
+                            className={`mine-tile ${tile.revealed ? (tile.isMine ? 'mine' : 'gem') : ''} ${!tile.revealed && minesStatus === 'playing' ? 'hover:bg-[#444]' : ''}`}
+                          >
+                            {tile.revealed && (
+                              <div className="mine-tile-inner">
+                                <div className="content">
+                                  {tile.isMine ? <Icon name="Bomb" size={24} className="text-[#e74c3c]" /> : <Icon name="Diamond" size={24} className="text-[#2ecc71]" />}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )) : (
+                          // Placeholder grid (visible when game hasn't started or state cleared)
+                          placeholderGrid.map((_, i) => (
+                            <div key={i} className="mine-tile opacity-30 cursor-not-allowed" onClick={() => alert('請點擊上方的「開始遊戲」按鈕！')}></div>
+                          ))
+                        )}
+                      </div>
+                      
+                      {minesStatus === 'exploded' && <p className="text-center text-red-500 font-bold text-sm mt-2 animate-bounce">BOOM! 遊戲結束</p>}
+                      {minesStatus === 'cashed_out' && <p className="text-center text-[#2ecc71] font-bold text-sm mt-2">恭喜贏取 {minesPotentialWin.toFixed(2)} P!</p>}
+
+                    </div>
+                  </div>
+                )}
+
+                {activeGame === 'blackjack' && (
+                  <div className="w-full bg-[#1e1e1e] p-6 border border-[#333] shadow-lg flex flex-col gap-4">
+                    <div className="flex justify-between items-center border-b border-[#333] pb-3">
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => setActiveGame(null)} className="text-[#666] hover:text-white mr-2">←</button>
+                        <h2 className="text-lg font-bold text-[#d4af37] flex items-center gap-2"><Icon name="Cards" size={20}/> BLACKJACK</h2>
+                      </div>
+                      <span className="text-xs text-[#666]">Bet: {bjBet} pts</span>
+                    </div>
+
+                    {/* Dealer Hand */}
+                    <div className="flex flex-col items-center gap-2">
+                      <p className="text-[10px] text-[#888] uppercase tracking-widest">Dealer</p>
+                      <div className="flex gap-2">
+                        {bjGameState === 'betting' ? (
+                          <div className="w-12 h-16 border border-[#333] rounded bg-[#222] flex items-center justify-center text-[#444] text-xs">Empty</div>
+                        ) : (
+                          bjDealerHand.map((card, i) => (
+                            <div key={i} className={`card ${card.color} ${i === 0 && bjGameState === 'playing' ? 'hidden' : ''}`}>
+                              {i === 0 && bjGameState === 'playing' ? '' : (
+                                <>
+                                  <span className="val-top">{card.value}<br/>{card.suit}</span>
+                                  <span className="suit">{card.suit}</span>
+                                  <span className="val-bottom">{card.value}<br/>{card.suit}</span>
+                                </>
+                              )}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                      <p className="text-xs text-[#e5e5e5] font-mono h-4">
+                        {bjGameState !== 'betting' && bjGameState !== 'playing' ? calculateHand(bjDealerHand) : ''}
+                      </p>
+                    </div>
+
+                    {/* Message Area */}
+                    <div className="h-8 flex items-center justify-center">
+                      <span className="text-sm font-bold text-[#d4af37] animate-bounce">{bjMessage}</span>
+                    </div>
+
+                    {/* Player Hand */}
+                    <div className="flex flex-col items-center gap-2">
+                      <p className="text-xs text-[#e5e5e5] font-mono h-4">
+                        {bjGameState !== 'betting' ? calculateHand(bjPlayerHand) : ''}
+                      </p>
+                      <div className="flex gap-2">
+                        {bjGameState === 'betting' ? (
+                          <div className="w-12 h-16 border border-[#333] rounded bg-[#222] flex items-center justify-center text-[#444] text-xs">Empty</div>
+                        ) : (
+                          bjPlayerHand.map((card, i) => (
+                            <div key={i} className={`card ${card.color}`}>
+                              <span className="val-top">{card.value}<br/>{card.suit}</span>
+                              <span className="suit">{card.suit}</span>
+                              <span className="val-bottom">{card.value}<br/>{card.suit}</span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                      <p className="text-[10px] text-[#888] uppercase tracking-widest">You</p>
+                    </div>
+
+                    {/* Controls */}
+                    <div className="grid grid-cols-2 gap-3 mt-2">
+                      {bjGameState === 'betting' || bjGameState === 'gameOver' ? (
+                        <button onClick={startBlackjack} className="col-span-2 btn-action py-3 text-xs tracking-widest">
+                          發牌 (Deal) - 0.25 P
+                        </button>
+                      ) : (
+                        <>
+                          <button onClick={hitBlackjack} className="bg-[#333] text-white py-3 text-xs font-bold border border-[#444] hover:bg-[#444]">要牌 (Hit)</button>
+                          <button onClick={standBlackjack} className="btn-action py-3 text-xs font-bold">停牌 (Stand)</button>
+                          {bjPlayerHand.length === 2 && (
+                            <button onClick={doubleBlackjack} className="col-span-2 bg-[#d4af37]/20 text-[#d4af37] border border-[#d4af37] py-3 text-xs font-bold hover:bg-[#d4af37]/40">
+                              雙倍下注 (Double) - 0.25 P
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* ♠️ 專屬對戰紀錄 (只在遊戲 Tab 顯示) */}
+                {activeGame !== null && (
+                  <div className="w-full space-y-3">
+                    <h3 className="text-[10px] font-bold text-[#666] uppercase tracking-[0.2em] px-2 flex items-center gap-2"><Icon name="History" size={14} className="text-[#d4af37]"/> 遊戲紀錄</h3>
+                    <div className="bg-[#1e1e1e] border border-[#333] overflow-hidden max-h-48 overflow-y-auto no-scrollbar">
+                      {submissions.filter(s => s.description && (s.description.includes('21點') || s.description.includes('Mines'))).length === 0 ? (
+                        <p className="text-center text-[11px] text-[#444] py-6 italic">尚無對戰紀錄</p>
+                      ) : (
+                        <div className="flex flex-col">
+                          {submissions.filter(s => s.description && (s.description.includes('21點') || s.description.includes('Mines'))).map(item => (
+                            <div key={item.id} className="log-item p-3 flex justify-between items-center">
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-[9px] text-[#666] font-bold uppercase">{item.timestamp?.toDate ? item.timestamp.toDate().toLocaleTimeString() : 'Just now'}</span>
+                                <p className="text-xs font-medium text-[#ccc] truncate pr-2">{item.description}</p>
+                              </div>
+                              <div className={`text-sm font-bold shrink-0 ${item.awardedPoints > 0 ? 'text-[#2ed573]' : 'text-[#ff4757]'}`}>
+                                {item.awardedPoints > 0 ? `+${item.awardedPoints.toFixed(2)}` : item.awardedPoints}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 1. 集點分頁 */}
+            {activeTab === 'home' && (
+              <div className="space-y-6 animate-in">
+                
+                {/* 🌟 新增：好事打卡區 */}
+                <div className="bg-[#1e1e1e] p-6 border border-[#333] shadow-lg relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-[#d4af37]/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"></div>
+                  <h3 className="font-bold text-[#e5e5e5] mb-5 flex gap-2 items-center tracking-wide"><Icon name="Sparkles" size={18} className="text-[#f1c40f]"/> 🌟 好事打卡區</h3>
+                  <textarea className="w-full bg-[#121212] p-4 border border-[#333] text-sm min-h-[90px] outline-none focus:border-[#f1c40f] transition-all text-[#e5e5e5]" placeholder="今天做了什麼很棒的事情..." value={deedDesc} onChange={(e) => setDeedDesc(e.target.value)} />
+                  <div className="flex gap-3 mt-5">
+                    <label className={`flex-[1.5] cursor-pointer py-3.5 flex items-center justify-center border transition-all ${deedFile ? 'border-[#f1c40f] bg-[#f1c40f]/10 text-[#f1c40f]' : 'border-[#333] bg-[#121212] text-[#666] hover:border-[#555]'}`}>
+                      <Icon name="Image" size={16} className="mr-2"/> <span className="text-xs font-bold">{deedFile ? '已選擇' : '上傳照片'}</span>
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => setDeedFile(e.target.files[0])} />
+                    </label>
+                    <button onClick={handleGoodDeedTask} disabled={isUploading} className="flex-1 btn-action py-3.5 text-xs bg-gradient-to-r from-[#f1c40f] to-[#f39c12]">提交好事</button>
+                  </div>
+                </div>
+
+                {/* 英文打卡區 */}
+                <div className="bg-[#1e1e1e] p-6 border border-[#333] shadow-lg relative overflow-hidden">
+                  <h3 className="font-bold text-[#e5e5e5] mb-5 flex gap-2 items-center tracking-wide"><Icon name="Book" size={18} className="text-[#d4af37]"/> 英文打卡區</h3>
+                  <textarea className="w-full bg-[#121212] p-4 border border-[#333] text-sm min-h-[90px] outline-none focus:border-[#d4af37] transition-all text-[#e5e5e5]" placeholder="今天讀了什麼英文..." value={desc} onChange={(e) => setDesc(e.target.value)} />
+                  <div className="flex gap-3 mt-5">
+                    <label className={`flex-[1.5] cursor-pointer py-3.5 flex items-center justify-center border transition-all ${selectedFile ? 'border-[#d4af37] bg-[#d4af37]/10 text-[#d4af37]' : 'border-[#333] bg-[#121212] text-[#666] hover:border-[#555]'}`}>
+                      <Icon name="Image" size={16} className="mr-2"/> <span className="text-xs font-bold">{selectedFile ? '已選擇' : '上傳證明'}</span>
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => setSelectedFile(e.target.files[0])} />
+                    </label>
+                    <button onClick={handleUploadTask} disabled={isUploading} className="flex-1 btn-action py-3.5 text-xs">提交打卡</button>
+                  </div>
+                </div>
+
+                {/* 喝水打卡區 */}
+                <div className="bg-[#1e1e1e] p-6 border border-[#333] shadow-lg relative overflow-hidden group">
+                  <div className="absolute -right-6 -top-6 text-[#d4af37]/10 transform rotate-12 group-hover:rotate-0 transition-all duration-700">
+                    <Icon name="Droplet" size={120} />
+                  </div>
+                  <h3 className="font-bold text-[#e5e5e5] mb-6 flex gap-2 items-center tracking-wide relative z-10">
+                    <Icon name="Droplet" size={18} className="text-[#3498db]"/> 喝水打卡區
+                  </h3>
                   
-                  <div onClick={() => { const t = prompt("請輸入新公告：", settings.announce); if(t) updateSettings({ announce: t }); }} className="bg-[#1e1e1e] p-4 border border-[#333] cursor-pointer hover:border-[#d4af37] transition-all flex justify-between items-center group"><div><p className="text-[10px] text-[#888] uppercase mb-1">跑馬燈公告</p><p className="text-xs text-[#e5e5e5] truncate max-w-[200px]">{settings.announce}</p></div><span className="text-[#d4af37] text-xs font-bold group-hover:translate-x-1 transition-transform">EDIT →</span></div>
+                  <div className="flex flex-col items-center justify-center mb-6 relative z-10">
+                    <div className="text-5xl font-bold text-[#3498db] mb-1 font-mono">{waterCount}<span className="text-lg ml-1 text-[#666]">ml</span></div>
+                    <p className="text-[10px] text-[#666] tracking-widest uppercase">本次攝取量</p>
+                  </div>
 
-                  <div className="bg-[#1e1e1e] border border-[#333] p-4 relative overflow-hidden"><div className="absolute right-0 top-0 bg-[#d4af37] text-black text-[9px] font-bold px-2 py-0.5">LOTTERY</div><h4 className="text-sm font-bold text-[#e5e5e5] mb-4 flex items-center gap-2"><Icon name="Dice" size={16} className="text-[#d4af37]"/> 抽薯條機率</h4><div className="grid grid-cols-2 gap-4"><div><label className="text-[10px] text-[#888] block mb-1">入場費</label><input type="number" className="w-full bg-[#121212] border border-[#333] p-2 text-white text-center font-mono" value={settings.lotteryCost} onChange={(e) => updateSettings({ lotteryCost: parseFloat(e.target.value) })} /></div><div><label className="text-[10px] text-[#888] block mb-1">中獎率</label><div className="flex items-center gap-2"><input type="range" min="0" max="1" step="0.01" className="flex-1 accent-[#d4af37]" value={settings.lotteryProb} onChange={(e) => updateSettings({ lotteryProb: parseFloat(e.target.value) })} /><span className="text-xs text-[#d4af37] font-mono w-8 text-right">{Math.round(settings.lotteryProb * 100)}%</span></div></div></div></div>
+                  <div className="grid grid-cols-4 gap-2 mb-6 relative z-10">
+                    <button onClick={() => setWaterCount(Math.max(0, waterCount - 100))} className="p-2 border border-[#333] text-[#666] hover:text-white hover:border-[#666] flex justify-center"><Icon name="Minus" size={16}/></button>
+                    <button onClick={() => setWaterCount(waterCount + 50)} className="p-2 border border-[#333] text-[#3498db] font-bold text-xs hover:bg-[#3498db]/10">+50</button>
+                    <button onClick={() => setWaterCount(waterCount + 100)} className="p-2 border border-[#333] text-[#3498db] font-bold text-xs hover:bg-[#3498db]/10">+100</button>
+                    <button onClick={() => setWaterCount(waterCount + 250)} className="p-2 border border-[#333] text-[#3498db] font-bold text-xs hover:bg-[#3498db]/10">+250</button>
+                  </div>
 
-                  <div className="bg-[#1e1e1e] border border-[#333] p-4 relative overflow-hidden"><div className="absolute right-0 top-0 bg-[#3498db] text-white text-[9px] font-bold px-2 py-0.5">BLACKJACK</div><h4 className="text-sm font-bold text-[#e5e5e5] mb-4 flex items-center gap-2"><Icon name="Cards" size={16} className="text-[#3498db]"/> 21點參數</h4><div className="grid grid-cols-3 gap-3 mb-4"><div><label className="text-[10px] text-[#888] block mb-1">Cost</label><input type="number" className="w-full bg-[#121212] border border-[#333] p-2 text-white text-center font-mono" value={settings.bjCost} onChange={(e) => updateSettings({ bjCost: parseFloat(e.target.value) })} /></div><div><label className="text-[10px] text-[#888] block mb-1">Win x</label><input type="number" step="0.1" className="w-full bg-[#121212] border border-[#333] p-2 text-white text-center font-mono" value={settings.bjWinMult} onChange={(e) => updateSettings({ bjWinMult: parseFloat(e.target.value) })} /></div><div><label className="text-[10px] text-[#888] block mb-1">Push x</label><input type="number" step="0.1" className="w-full bg-[#121212] border border-[#333] p-2 text-white text-center font-mono" value={settings.bjPushMult} onChange={(e) => updateSettings({ bjPushMult: parseFloat(e.target.value) })} /></div></div><div><label className="text-[10px] text-[#888] block mb-1 flex justify-between"><span>莊家作弊率 (Dealer Luck)</span> <span className="text-[#3498db]">{Math.round(settings.bjDealerLuck * 100)}%</span></label><input type="range" min="0" max="1" step="0.01" className="w-full accent-[#3498db]" value={settings.bjDealerLuck} onChange={(e) => updateSettings({ bjDealerLuck: parseFloat(e.target.value) })} /></div></div>
+                  <button onClick={handleWaterSubmit} disabled={isUploading} className="w-full py-4 bg-[#3498db] text-white font-bold text-xs tracking-widest shadow-[0_4px_20px_rgba(52,152,219,0.3)] hover:shadow-[0_4px_30px_rgba(52,152,219,0.5)] transition-all relative z-10 active:scale-95">
+                    送出喝水紀錄
+                  </button>
+                </div>
 
-                  <div className="bg-[#1e1e1e] border border-[#333] p-4 relative overflow-hidden"><div className="absolute right-0 top-0 bg-[#ef4444] text-white text-[9px] font-bold px-2 py-0.5">MINES</div><h4 className="text-sm font-bold text-[#e5e5e5] mb-4 flex items-center gap-2"><Icon name="Bomb" size={16} className="text-[#ef4444]"/> Mines 參數</h4><div className="grid grid-cols-2 gap-4 mb-4"><div><label className="text-[10px] text-[#888] block mb-1">Cost</label><input type="number" className="w-full bg-[#121212] border border-[#333] p-2 text-white text-center font-mono" value={settings.minesCost} onChange={(e) => updateSettings({ minesCost: parseFloat(e.target.value) })} /></div><div><label className="text-[10px] text-[#888] block mb-1">倍率係數</label><input type="number" step="0.1" className="w-full bg-[#121212] border border-[#333] p-2 text-white text-center font-mono" value={settings.minesMultScale} onChange={(e) => updateSettings({ minesMultScale: parseFloat(e.target.value) })} /></div></div><div><label className="text-[10px] text-[#888] block mb-1 flex justify-between"><span>陷阱機率 (Trap Chance)</span> <span className="text-[#ef4444]">{Math.round(settings.minesTrapProb * 100)}%</span></label><input type="range" min="0" max="1" step="0.01" className="w-full accent-[#ef4444]" value={settings.minesTrapProb} onChange={(e) => updateSettings({ minesTrapProb: parseFloat(e.target.value) })} /></div></div>
-                </section>
+                <div className="space-y-4">
+                    <h3 className="text-[10px] font-bold text-[#666] uppercase tracking-[0.2em] px-2 flex items-center gap-2"><Icon name="Ticket" size={14} className="text-[#d4af37]"/> 我的兌換券</h3>
+                    <div className="flex flex-col gap-3">
+                      {/* Only show 'redeemed' or 'verified' status here. Ignore 'spent' and 'won' */}
+                      {submissions.filter(s => s.status === 'redeemed' || s.status === 'verified').length === 0 && <p className="text-center text-[11px] text-[#444] py-6 border border-dashed border-[#333] italic">尚未擁有兌換券</p>}
+                      {submissions.filter(s => s.status === 'redeemed' || s.status === 'verified').map(coupon => (
+                        <div key={coupon.id} className={`coupon-card p-4 flex items-center gap-4 ${coupon.status === 'verified' ? 'coupon-used' : ''}`}>
+                          <div className="w-14 h-14 bg-[#121212] overflow-hidden shrink-0 border border-[#333] relative">
+                            {coupon.image && <img src={coupon.image} className="w-full h-full object-cover" />}
+                            {coupon.status === 'verified' && <div className="absolute inset-0 flex items-center justify-center bg-black/70 text-white font-bold text-[8px] tracking-tighter">USED</div>}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-[#e5e5e5] truncate">{coupon.description.replace('🎁 已兌換：', '').replace('🍟 抽獎中獎：', '中獎: ')}</p>
+                            <p className="text-[10px] text-[#d4af37] font-bold mt-1 uppercase tracking-tighter">{coupon.status === 'verified' ? '已核銷' : 'VIP 專屬權益'}</p>
+                          </div>
+                          <button onClick={(e) => deleteItem(e, 'submissions', coupon.id, '這張紀錄')} className="text-[#444] hover:text-red-500 transition-colors p-2"><Icon name="Trash2" size={16}/></button>
+                        </div>
+                      ))}
+                    </div>
+                </div>
 
-                {/* 3. 商店管理 */}
-                <section className="space-y-4">
-                  <h3 className="text-[12px] font-bold text-[#e5e5e5] uppercase tracking-[0.2em] px-2 flex items-center gap-2 border-l-4 border-[#2ecc71] pl-3"><Icon name="Store" size={16} className="text-[#2ecc71]"/> 上架新商品</h3>
-                  <div className="bg-[#1e1e1e] p-5 border border-[#333] shadow-lg"><div className="space-y-4"><input className="w-full bg-[#121212] border border-[#333] p-3 text-sm text-white placeholder-[#555] outline-none focus:border-[#2ecc71] transition-colors" placeholder="商品名稱 (如: 冰拿鐵)" value={adminRewardName} onChange={(e) => setAdminRewardName(e.target.value)} /><div className="grid grid-cols-2 gap-4"><input type="number" className="bg-[#121212] border border-[#333] p-3 text-sm text-white placeholder-[#555] outline-none focus:border-[#2ecc71]" placeholder="點數價格" value={adminRewardCost} onChange={(e) => setAdminRewardCost(e.target.value)} /><input type="file" accept="image/*" className="text-[10px] text-[#666] file:mr-2 file:py-2 file:px-4 file:border-0 file:bg-[#333] file:text-white hover:file:bg-[#444]" onChange={(e) => setAdminRewardImage(e.target.files[0])} /></div><button onClick={handleAddRewardByAdmin} disabled={isAddingReward} className="w-full py-3.5 btn-action font-bold text-xs bg-gradient-to-r from-[#2ecc71] to-[#27ae60]">確認上架</button></div></div>
-                </section>
+                <div className="space-y-4">
+                  <h3 className="text-[10px] font-bold text-[#666] uppercase tracking-[0.2em] px-2 flex items-center gap-2"><Icon name="History" size={14} className="text-[#d4af37]"/> 交易紀錄</h3>
+                  <div className="bg-[#1e1e1e] border border-[#333] overflow-hidden">
+                    {/* Show all completed transactions: approved, deducted, redeemed, spent, won */}
+                    {submissions.filter(s => ['approved', 'deducted', 'redeemed', 'spent', 'won', 'verified'].includes(s.status)).length === 0 ? (
+                      <p className="text-center text-[11px] text-[#444] py-8 italic">尚無交易紀錄</p>
+                    ) : (
+                      <div className="flex flex-col">
+                        {submissions.filter(s => ['approved', 'deducted', 'redeemed', 'spent', 'won', 'verified'].includes(s.status)).map(item => (
+                          <div key={item.id} className="log-item p-4 flex justify-between items-center">
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-[9px] text-[#666] font-bold uppercase">{item.timestamp ? new Date(item.timestamp.seconds * 1000).toLocaleDateString() : 'Just now'}</span>
+                              <p className="text-xs font-medium text-[#ccc] truncate pr-2">{item.description.replace('🎁 已兌換：', '兌換: ').replace('⚠️ 扣點：', '扣點: ').replace('🍟 抽獎中獎：', '抽獎: ')}</p>
+                            </div>
+                            <div className={`text-sm font-bold shrink-0 ${item.awardedPoints > 0 ? 'text-[#2ed573]' : 'text-[#ff4757]'}`}>
+                              {item.awardedPoints > 0 ? `+${item.awardedPoints}` : item.awardedPoints}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
-                {/* 4. 懲罰扣點 */}
-                <section className="space-y-4">
-                  <h3 className="text-[12px] font-bold text-[#e5e5e5] uppercase tracking-[0.2em] px-2 flex items-center gap-2 border-l-4 border-[#ef4444] pl-3"><Icon name="Alert" size={16} className="text-[#ef4444]"/> 懲罰與扣除</h3>
-                  <div className="bg-[#1e1e1e] p-5 border border-red-900/30 shadow-lg"><div className="flex gap-3"><input className="flex-[2] bg-[#121212] border border-[#333] p-3 text-sm text-white placeholder-[#555] outline-none focus:border-[#ef4444]" placeholder="扣分原因 (如: 遲到)" value={penaltyDesc} onChange={(e) => setPenaltyDesc(e.target.value)} /><input type="number" className="flex-1 bg-[#121212] border border-[#333] p-3 text-sm text-white placeholder-[#555] outline-none focus:border-[#ef4444]" placeholder="點數" value={penaltyAmount} onChange={(e) => setPenaltyAmount(e.target.value)} /></div><button onClick={handleDeductPoints} disabled={isProcessing} className="w-full mt-4 py-3.5 bg-[#ef4444] text-white font-bold text-xs shadow-lg active:scale-95 hover:bg-red-600 transition-colors">執行扣點</button></div>
-                </section>
+            {/* 2. 兌換分頁 */}
+            {activeTab === 'rewards' && (
+              <div className="space-y-6 animate-in">
+                {/* 許願區已移除 */}
+                
+                <div className="space-y-4">
+                  <h2 className="font-bold text-[#e5e5e5] text-lg flex gap-2 items-center px-1 mb-2"><Icon name="Store" className="text-[#d4af37]" size={20}/> 尊榮兌換商店</h2>
+                  {rewards.length === 0 && <p className="text-center text-[#666] py-10 italic">目前商店沒有商品上架</p>}
+                  {rewards.map(r => (
+                    <div key={r.id} className="bg-[#1e1e1e] border border-[#333] shadow-lg flex h-36 group overflow-hidden relative">
+                      {isAdmin && (
+                        <button onClick={(e) => deleteItem(e, 'rewards', r.id, r.name)} className="absolute top-2 right-2 z-20 bg-black/50 backdrop-blur-md p-2 text-[#ccc] hover:text-red-500 transition-all">
+                          <Icon name="Trash2" size={14}/>
+                        </button>
+                      )}
+                      <div className="w-2/5 bg-[#121212] relative shrink-0 overflow-hidden m-0">
+                        {r.image && <img src={r.image} className={`w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110 opacity-80`} />}
+                        {!r.available && <div className="absolute inset-0 flex items-center justify-center bg-black/80 text-[#d4af37] text-[10px] font-bold tracking-widest">補貨中</div>}
+                      </div>
+                      <div className="flex-1 p-5 pl-4 flex flex-col justify-between min-w-0">
+                        <div>
+                          <h4 className="text-sm font-bold text-[#e5e5e5] truncate pr-6 leading-tight">{r.name}</h4>
+                          {r.available && <p className="text-[10px] text-[#d4af37] font-bold mt-1 uppercase tracking-widest">{r.cost} P</p>}
+                        </div>
+                        <button onClick={() => r.available && handleRedeem(r)} disabled={!r.available || points < Number(r.cost)} className={`w-full py-2.5 text-[10px] font-bold transition-all ${r.available && points >= Number(r.cost) ? 'btn-action' : 'bg-[#333] text-[#666]'}`}>
+                          {r.available ? (points >= Number(r.cost) ? '立即兌換' : '點數不足') : '等候定價'}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
-                {/* 5. 交易紀錄 */}
-                <section className="space-y-4">
-                  <h3 className="text-[12px] font-bold text-[#e5e5e5] uppercase tracking-[0.2em] px-2 flex items-center gap-2 border-l-4 border-[#999] pl-3"><Icon name="History" size={16} className="text-[#999]"/> 系統交易紀錄</h3>
-                  <div className="bg-[#1e1e1e] border border-[#333] max-h-80 overflow-y-auto custom-scrollbar">{submissions.map(s => <div key={s.id} className="flex justify-between items-center p-3 border-b border-[#333] text-xs hover:bg-[#252525] transition-colors group"><div className="flex-1 min-w-0 pr-3"><p className="text-[#ccc] truncate font-medium">{s.description}</p><p className="text-[10px] text-[#666] mt-0.5">{s.timestamp?.toDate ? s.timestamp.toDate().toLocaleString() : 'Just now'} • {s.status}</p></div><div className="flex items-center gap-3"><span className={`font-bold ${s.awardedPoints > 0 ? 'text-[#2ecc71]' : 'text-[#ef4444]'}`}>{s.awardedPoints > 0 ? '+' : ''}{s.awardedPoints}</span><button onClick={(e) => deleteItem(e, 'submissions', s.id, s.description)} className="text-[#444] hover:text-red-500 p-1.5 opacity-0 group-hover:opacity-100 transition-opacity"><Icon name="Trash2" size={14}/></button></div></div>)}</div>
-                </section>
+            {/* 新增：抽獎分頁 */}
+            {activeTab === 'lottery' && (
+              <div className="space-y-6 animate-in flex flex-col items-center justify-center h-full pb-10">
+                <div className="w-full bg-[#1e1e1e] p-8 border border-[#333] shadow-lg text-center space-y-6">
+                  <div className="text-6xl animate-float">🍟</div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-[#d4af37] uppercase tracking-widest mb-2">LUCKY DRAW</h2>
+                    <p className="text-[#888] text-xs">花費 5 點，試試手氣抽薯條</p>
+                    <p className="text-[10px] text-[#444] mt-2">目前中獎機率: {Math.round((settings.lotteryProb || 0.1) * 100)}%</p>
+                  </div>
+                  <div className="w-full border-t border-[#333] my-4"></div>
+                  <button onClick={handleLottery} className="w-full btn-action py-5 text-sm tracking-[0.2em] shadow-[0_0_30px_rgba(212,175,55,0.2)] hover:shadow-[0_0_50px_rgba(212,175,55,0.4)] transition-all">
+                    立即抽獎 (-5 P)
+                  </button>
+                </div>
+                <p className="text-[10px] text-[#444] mt-4">中獎後請至「集點 > 兌換券」查看</p>
+              </div>
+            )}
+
+            {/* 4. 管理分頁 */}
+            {activeTab === 'admin' && isAdmin && (
+              <div className="space-y-6 pb-10 animate-in">
+                
+                {/* 待審核任務區塊 (新增) */}
+                <div className="space-y-4">
+                  <h3 className="text-[10px] font-bold text-[#666] uppercase tracking-[0.2em] px-2 flex items-center gap-2">
+                    <Icon name="Check" size={14} className="text-[#d4af37]"/> 待審核任務
+                  </h3>
+                  
+                  {submissions.filter(s => s.status === 'pending').length === 0 ? (
+                    <p className="text-center text-[11px] text-[#444] py-6 border border-dashed border-[#333] italic">目前無待審核任務</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {submissions.filter(s => s.status === 'pending').map(s => (
+                        <div key={s.id} className="bg-[#1e1e1e] p-4 border border-[#333] shadow-lg relative"> {/* added relative */}
+                          
+                          {/* 刪除按鈕移到右上角，避免誤觸 */}
+                          <button 
+                            onClick={(e) => deleteItem(e, 'submissions', s.id, '此申請')} 
+                            className="absolute top-2 right-2 text-[#666] hover:text-red-500 p-2 z-10 hover:bg-[#333]/50 transition-colors"
+                            title="刪除此申請"
+                          >
+                            <Icon name="Trash2" size={16} />
+                          </button>
+
+                          <div className="flex gap-4 pr-6"> {/* pr-6 避免文字被刪除按鈕蓋住 */}
+                            {s.image && (
+                              <div className="w-16 h-16 bg-black shrink-0 border border-[#333]">
+                                <img src={s.image} className="w-full h-full object-cover" />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                               <p className="text-sm font-bold text-[#e5e5e5] break-words">{s.description}</p>
+                               <p className="text-[10px] text-[#666] mt-1">{s.timestamp?.toDate ? s.timestamp.toDate().toLocaleString() : 'Just now'}</p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-2 pt-3 mt-2 border-t border-[#333]/50">
+                            <input 
+                              type="number" 
+                              placeholder="給予點數" 
+                              className="flex-1 bg-[#121212] border border-[#333] p-2 text-sm text-white outline-none focus:border-[#d4af37]"
+                              value={approvalPoints[s.id] || ''}
+                              onChange={(e) => setApprovalPoints({...approvalPoints, [s.id]: e.target.value})}
+                            />
+                            <button 
+                              onClick={() => handleApprove(s, approvalPoints[s.id])} 
+                              disabled={isProcessing}
+                              className="btn-action px-6 py-2 text-xs" // 加大按鈕區域
+                            >
+                              批准
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-gradient-to-r from-[#111] to-[#222] p-6 text-white shadow-lg border border-[#333] relative overflow-hidden">
+                  <h2 className="text-sm font-bold flex gap-2 items-center mb-4 text-[#d4af37]"><Icon name="Chart" size={18}/> 系統設置</h2>
+                  
+                  {/* 機率控制器 */}
+                  <div className="mb-6 p-4 border border-[#333] bg-[#000]/30">
+                    <label className="text-xs text-[#888] mb-2 block font-bold uppercase">抽獎中獎機率: {Math.round((settings.lotteryProb || 0.1) * 100)}%</label>
+                    <input 
+                      type="range" min="0" max="1" step="0.01" 
+                      className="w-full accent-[#d4af37]"
+                      value={settings.lotteryProb || 0.1} 
+                      onChange={(e) => setSettings({...settings, lotteryProb: parseFloat(e.target.value)})}
+                      onMouseUp={() => updateSettings(null, parseFloat(settings.lotteryProb))}
+                      onTouchEnd={() => updateSettings(null, parseFloat(settings.lotteryProb))}
+                    />
+                    <div className="flex justify-between text-[10px] text-[#444] mt-1">
+                      <span>0% (必輸)</span><span>50%</span><span>100% (必贏)</span>
+                    </div>
+                  </div>
+
+                  <button onClick={() => { const t = prompt("請輸入新公告：", settings.announce); if(t) updateSettings(t, null); }} className="w-full bg-[#333] py-2 text-[10px] font-bold transition-all hover:bg-[#444]">修改跑馬燈</button>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-[9px] font-bold text-[#666] px-3 uppercase tracking-[0.2em]">所有交易紀錄 (可刪除)</h3>
+                  <div className="bg-[#1e1e1e] border border-[#333] max-h-60 overflow-y-auto">
+                    {submissions.map(s => (
+                      <div key={s.id} className="flex justify-between items-center p-3 border-b border-[#333] text-xs">
+                        <div className="truncate pr-2 text-[#ccc]">
+                          {s.description} 
+                          <span className="block text-[10px] text-[#666]">{s.timestamp?.toDate ? s.timestamp.toDate().toLocaleDateString() : 'Just now'}</span>
+                        </div>
+                        <button onClick={(e) => deleteItem(e, 'submissions', s.id, s.description)} className="text-[#666] hover:text-red-500 p-2"><Icon name="Trash2" size={14}/></button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-[#1e1e1e] p-7 border border-red-900/30 shadow-xl space-y-4">
+                  <h3 className="font-bold text-red-500 mb-4 flex gap-2 items-center text-sm"><Icon name="Alert" size={18}/> 懲罰扣點</h3>
+                  <div className="space-y-4">
+                    <input className="w-full bg-[#121212] border border-[#333] p-4 text-sm font-light outline-none focus:border-red-500 text-white" placeholder="扣分原因" value={penaltyDesc} onChange={(e) => setPenaltyDesc(e.target.value)} />
+                    <input type="number" className="w-full bg-[#121212] border border-[#333] p-4 text-sm font-light outline-none focus:border-red-500 text-white" placeholder="點數 (正數)" value={penaltyAmount} onChange={(e) => setPenaltyAmount(e.target.value)} />
+                    <button onClick={handleDeductPoints} disabled={isProcessing} className="w-full py-4 bg-red-600 text-white font-bold text-xs shadow-lg active:scale-95">執行扣點</button>
+                  </div>
+                </div>
+
+                <div className="bg-[#1e1e1e] p-7 border border-[#333] space-y-4 shadow-lg">
+                  <h3 className="text-sm font-bold text-[#e5e5e5] flex items-center gap-2"><Icon name="Plus" size={18} className="text-[#d4af37]"/> 上架新商品</h3>
+                  <div className="space-y-4">
+                    <input className="w-full bg-[#121212] border border-[#333] p-4 text-sm font-light outline-none focus:border-[#d4af37] text-white" placeholder="商品名稱" value={adminRewardName} onChange={(e) => setAdminRewardName(e.target.value)} />
+                    <input type="number" className="w-full bg-[#121212] border border-[#333] p-4 text-sm font-light outline-none focus:border-[#d4af37] text-white" placeholder="設定點數" value={adminRewardCost} onChange={(e) => setAdminRewardCost(e.target.value)} />
+                    <input type="file" accept="image/*" className="text-[10px] block w-full text-[#666]" onChange={(e) => setAdminRewardImage(e.target.files[0])} />
+                    <button onClick={handleAddRewardByAdmin} disabled={isAddingReward} className="w-full py-3.5 btn-action font-bold text-xs">上架</button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
 
+          {/* 底部導航 (懸浮膠囊樣式) */}
           <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
             <div className="bg-[#1e1e1e]/90 backdrop-blur-md border border-[#333] px-6 py-3 rounded-full flex gap-6 shadow-2xl items-center">
-              <button onClick={() => setActiveTab('dashboard')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'dashboard' ? 'text-[#d4af37] scale-110' : 'text-[#666] hover:text-[#888]'}`}><Icon name="Home" size={20} className={activeTab === 'dashboard' ? 'stroke-[2px]' : ''}/></button>
-              <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'home' ? 'text-[#d4af37] scale-110' : 'text-[#666] hover:text-[#888]'}`}><Icon name="Plus" size={20} className={activeTab === 'home' ? 'stroke-[2px]' : ''}/></button>
-              <button onClick={() => setActiveTab('games')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'games' ? 'text-[#d4af37] scale-110' : 'text-[#666] hover:text-[#888]'}`}><Icon name="Cards" size={20} className={activeTab === 'games' ? 'stroke-[2px]' : ''}/></button>
-              <button onClick={() => setActiveTab('rewards')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'rewards' ? 'text-[#d4af37] scale-110' : 'text-[#666] hover:text-[#888]'}`}><Icon name="Gift" size={20} className={activeTab === 'rewards' ? 'stroke-[2px]' : ''}/></button>
-              <button onClick={() => setActiveTab('lottery')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'lottery' ? 'text-[#d4af37] scale-110' : 'text-[#666] hover:text-[#888]'}`}><Icon name="Dice" size={20} className={activeTab === 'lottery' ? 'stroke-[2px]' : ''}/></button>
+              <button onClick={() => setActiveTab('dashboard')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'dashboard' ? 'text-[#d4af37] scale-110' : 'text-[#666] hover:text-[#888]'}`}>
+                <Icon name="Home" size={20} className={activeTab === 'dashboard' ? 'stroke-[2px]' : ''}/>
+              </button>
+              <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'home' ? 'text-[#d4af37] scale-110' : 'text-[#666] hover:text-[#888]'}`}>
+                <Icon name="Plus" size={20} className={activeTab === 'home' ? 'stroke-[2px]' : ''}/>
+              </button>
+              <button onClick={() => setActiveTab('games')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'games' ? 'text-[#d4af37] scale-110' : 'text-[#666] hover:text-[#888]'}`}>
+                <Icon name="Cards" size={20} className={activeTab === 'games' ? 'stroke-[2px]' : ''}/>
+              </button>
+              <button onClick={() => setActiveTab('rewards')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'rewards' ? 'text-[#d4af37] scale-110' : 'text-[#666] hover:text-[#888]'}`}>
+                <Icon name="Gift" size={20} className={activeTab === 'rewards' ? 'stroke-[2px]' : ''}/>
+              </button>
+              <button onClick={() => setActiveTab('lottery')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'lottery' ? 'text-[#d4af37] scale-110' : 'text-[#666] hover:text-[#888]'}`}>
+                <Icon name="Dice" size={20} className={activeTab === 'lottery' ? 'stroke-[2px]' : ''}/>
+              </button>
             </div>
           </div>
         </div>
