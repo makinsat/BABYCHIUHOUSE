@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>VIP LOUNGE</title>
+  <title>VIP LOUNGE - Free Play</title>
   
   <!-- 1. 字體改為 Montserrat (支援粗細變化) -->
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;800&display=swap" rel="stylesheet">
@@ -137,10 +137,9 @@
     .card .val-top { align-self: flex-start; line-height: 1; }
     .card .val-bottom { align-self: flex-end; transform: rotate(180deg); line-height: 1; }
 
-    /* Mines 遊戲樣式 - 全面修復 */
+    /* Mines 遊戲樣式 */
     .mines-grid {
       display: grid;
-      /* grid-template-columns 由 React Inline Style 控制，不再寫死 */
       gap: 8px;
       margin: 0 auto;
       width: 100%;
@@ -148,12 +147,12 @@
     }
     .mine-tile {
       width: 100%;
-      padding-bottom: 100%; /* 1:1 Aspect Ratio Hack - 確保正方形 */
-      background: #3a3a3a; /* 亮一點的灰色，確保可見 */
+      padding-bottom: 100%; /* 1:1 Aspect Ratio Hack */
+      background: #3a3a3a;
       border-radius: 6px;
       cursor: pointer;
       position: relative;
-      border-bottom: 4px solid #222; /* 立體感 */
+      border-bottom: 4px solid #222;
       transition: transform 0.1s ease, background 0.2s, border-color 0.2s;
       box-shadow: 0 4px 6px rgba(0,0,0,0.3);
     }
@@ -172,13 +171,13 @@
     .mine-tile.gem { 
       background: #112e1e; 
       border-bottom-color: #0b1f13; 
-      border-color: #2ecc71; /* 綠色邊框 */
+      border-color: #2ecc71; 
       border-width: 1px;
     }
     .mine-tile.mine { 
       background: #3e1212; 
       border-bottom-color: #2a0b0b; 
-      border-color: #e74c3c; /* 紅色邊框 */
+      border-color: #e74c3c; 
       border-width: 1px;
     }
     .mine-tile-inner {
@@ -340,7 +339,7 @@
       const [isAdmin, setIsAdmin] = useState(false);
       const [points, setPoints] = useState(0);
       const [stats, setStats] = useState({ totalIssued: 0, totalRedeemed: 0 });
-      // settings 增加 minesGridSize, 預設 3 (即 3x3)
+      // Mines Grid Size 預設 3x3
       const [settings, setSettings] = useState({ announce: 'Welcome to VIP Lounge', lotteryProb: 0.1, minesGridSize: 3 }); 
       const [submissions, setSubmissions] = useState([]);
       const [rewards, setRewards] = useState([]);
@@ -376,6 +375,10 @@
       const [penaltyDesc, setPenaltyDesc] = useState('');
       const [penaltyAmount, setPenaltyAmount] = useState('');
 
+      // New Admin Direct Point Allocation State
+      const [adminManualPoints, setAdminManualPoints] = useState('');
+      const [adminManualReason, setAdminManualReason] = useState('');
+
       // Blackjack State
       const [bjDeck, setBjDeck] = useState([]);
       const [bjPlayerHand, setBjPlayerHand] = useState([]);
@@ -383,14 +386,14 @@
       const [bjGameState, setBjGameState] = useState('betting'); // betting, playing, gameOver
       const [bjMessage, setBjMessage] = useState('');
       const [bjBet, setBjBet] = useState(0.25);
+      const [bjBetInput, setBjBetInput] = useState('0.25'); // String for input
 
       // Mines State
-      const [minesCount, setMinesCount] = useState(1); // 預設地雷數改為 1
-      const [minesGrid, setMinesGrid] = useState([]); // {id, isMine, revealed}
+      const [minesCount, setMinesCount] = useState(1); 
+      const [minesGrid, setMinesGrid] = useState([]); 
       const [minesStatus, setMinesStatus] = useState('idle'); // idle, playing, exploded, cashed_out
       const [minesMultiplier, setMinesMultiplier] = useState(1);
-      const [minesPotentialWin, setMinesPotentialWin] = useState(0);
-
+      
       const getPublicRef = (name) => collection(db, 'artifacts', appId, 'public', 'data', name);
 
       useEffect(() => {
@@ -490,158 +493,155 @@
         } else { alert('密碼錯誤 🔒'); }
       };
 
-      // --- Mines Game Functions ---
-      const startMines = async () => {
-        const cost = 5;
-        if (points < cost) return alert("點數不足 5 P！");
+      // --- Admin Direct Point Allocation ---
+      const handleManualPointAdjustment = async () => {
+        if (!adminManualPoints || isNaN(adminManualPoints)) return alert("請輸入有效數字");
+        if (!adminManualReason.trim()) return alert("請輸入原因");
         
+        const pts = parseFloat(adminManualPoints);
+        setIsProcessing(true);
         try {
-          // Deduct cost
-          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'total'), { 
-            totalPoints: increment(-cost),
-            totalRedeemed: increment(cost)
-          });
-          
+            await addDoc(getPublicRef('submissions'), {
+                description: `🔧 管理員調整：${adminManualReason}`,
+                status: pts >= 0 ? 'approved' : 'deducted',
+                awardedPoints: pts,
+                timestamp: serverTimestamp(),
+                userId: user.uid
+            });
+            
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'total'), {
+                totalPoints: increment(pts),
+                totalIssued: pts > 0 ? increment(pts) : increment(0),
+                totalRedeemed: pts < 0 ? increment(Math.abs(pts)) : increment(0)
+            });
+            
+            setAdminManualPoints('');
+            setAdminManualReason('');
+            alert(`已成功調整 ${pts} 點！`);
+        } catch (e) {
+            alert("調整失敗");
+            console.error(e);
+        } finally {
+            setIsProcessing(false);
+        }
+      };
+
+      // --- Mines Game Functions (Free Play Mode) ---
+      const startMines = async () => {
+        // No bet deduction, free play mode
+        const gridSize = settings.minesGridSize || 3;
+        const totalTiles = gridSize * gridSize;
+
+        // Generate Pure Random Grid (Normal Odds)
+        let grid = Array(totalTiles).fill(null).map((_, i) => ({ id: i, isMine: false, revealed: false }));
+        let minesPlaced = 0;
+        
+        // 防止地雷數大於格子數
+        const actualMinesCount = Math.min(minesCount, totalTiles - 1); 
+
+        while (minesPlaced < actualMinesCount) {
+          let idx = Math.floor(Math.random() * totalTiles);
+          if (!grid[idx].isMine) {
+            grid[idx].isMine = true;
+            minesPlaced++;
+          }
+        }
+
+        setMinesGrid(grid);
+        setMinesStatus('playing');
+        setMinesMultiplier(1.0);
+        
+        // Optional: Log simple start record for history (0 points)
+        try {
           await addDoc(getPublicRef('submissions'), {
-            description: `💣 Mines：入場費 (${settings.minesGridSize}x${settings.minesGridSize})`,
+            description: `💣 Mines：開始遊戲 (${gridSize}x${gridSize}, Free)`,
             status: 'spent', 
             timestamp: serverTimestamp(),
             userId: user.uid,
-            awardedPoints: -cost
+            awardedPoints: 0
           });
-
-          // Create Grid (Dynamic Size based on settings)
-          const gridSize = settings.minesGridSize || 3;
-          const totalTiles = gridSize * gridSize;
-
-          let grid = Array(totalTiles).fill(null).map((_, i) => ({ id: i, isMine: false, revealed: false }));
-          let minesPlaced = 0;
-          
-          // 防止地雷數大於格子數
-          const actualMinesCount = Math.min(minesCount, totalTiles - 1); 
-
-          while (minesPlaced < actualMinesCount) {
-            let idx = Math.floor(Math.random() * totalTiles);
-            if (!grid[idx].isMine) {
-              grid[idx].isMine = true;
-              minesPlaced++;
-            }
-          }
-
-          setMinesGrid(grid);
-          setMinesStatus('playing');
-          setMinesMultiplier(1.0);
-          setMinesPotentialWin(5);
-
-        } catch (e) { alert("遊戲錯誤"); }
+        } catch(e) { console.log("Log error", e); }
       };
 
       const clickTile = (index) => {
         if (minesStatus !== 'playing') {
-          // 如果還沒開始，提示用戶
           if(minesStatus === 'idle') alert('請先點擊下方的「開始遊戲」！');
           return;
         }
         if (minesGrid[index].revealed) return;
 
-        let newGrid = minesGrid.map(tile => ({...tile}));
-
-        // Rigging for 3x3 & 1 Mine
-        if (settings.minesGridSize === 3 && minesCount === 1) {
-            // 40% Win Rate (Survival), 60% Loss Rate
-            const isLoss = Math.random() > 0.4;
-            
-            if (isLoss) {
-                // Force Loss: Ensure clicked tile is a mine, others are not
-                newGrid.forEach(t => t.isMine = false);
-                newGrid[index].isMine = true;
-            } else {
-                // Force Win: Ensure clicked tile is NOT a mine
-                if (newGrid[index].isMine) {
-                    newGrid[index].isMine = false;
-                    // Move mine to another unrevealed spot
-                    const candidates = newGrid.filter(t => t.id !== index && !t.revealed);
-                    if (candidates.length > 0) {
-                        const randomSpot = candidates[Math.floor(Math.random() * candidates.length)];
-                        randomSpot.isMine = true;
-                    }
-                }
-            }
-        }
-
-        newGrid[index].revealed = true;
-
+        let newGrid = [...minesGrid];
+        
+        // Normal Odds: Directly check the pre-generated grid
         if (newGrid[index].isMine) {
           // BOOM
+          newGrid[index].revealed = true;
           setMinesStatus('exploded');
+          // Reveal all
           newGrid.forEach(t => t.revealed = true);
           setMinesGrid(newGrid);
         } else {
           // Gem
+          newGrid[index].revealed = true;
           setMinesGrid(newGrid);
           
           const gridSize = settings.minesGridSize || 3;
           const totalTiles = gridSize * gridSize;
-          const actualMinesCount = minesGrid.filter(t => t.isMine).length;
-
-          const revealedCount = newGrid.filter(t => t.revealed && !t.isMine).length;
-          const remainingTiles = totalTiles - (revealedCount - 1); 
-          const remainingSafe = totalTiles - actualMinesCount - (revealedCount - 1);
+          const actualMinesCount = newGrid.filter(t => t.isMine).length;
+          const currentRevealedCount = newGrid.filter(t => t.revealed && !t.isMine).length;
           
-          // House Edge: 每次計算倍率時，乘以 0.97 (3% 莊家優勢)
-          let nextMult = minesMultiplier * (remainingTiles / remainingSafe) * 0.97;
+          // Calculate Multiplier (Standard Probability Math)
+          // Odds = Total_Remaining / Safe_Remaining
+          const remainingTiles = totalTiles - (currentRevealedCount - 1); 
+          const remainingSafe = totalTiles - actualMinesCount - (currentRevealedCount - 1);
           
+          let nextMult = minesMultiplier * (remainingTiles / remainingSafe);
           setMinesMultiplier(nextMult);
-          setMinesPotentialWin(5 * nextMult);
         }
       };
 
       const cashOutMines = async () => {
         if (minesStatus !== 'playing') return;
         
+        setMinesStatus('cashed_out');
+        
+        // Reveal all
+        const newGrid = [...minesGrid];
+        newGrid.forEach(t => t.revealed = true);
+        setMinesGrid(newGrid);
+
+        // Optional: Log win record (0 points)
         try {
-          const winAmount = minesPotentialWin;
-          setMinesStatus('cashed_out');
-          
-          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'total'), { 
-            totalPoints: increment(winAmount),
-            totalIssued: increment(Math.max(0, winAmount - 5))
-          });
-          
           await addDoc(getPublicRef('submissions'), {
-            description: `💣 Mines：獲勝 (${winAmount.toFixed(2)})`,
+            description: `💣 Mines：獲勝 (x${minesMultiplier.toFixed(2)})`,
             status: 'won', 
             timestamp: serverTimestamp(),
             userId: user.uid,
-            awardedPoints: winAmount
+            awardedPoints: 0
           });
-          
-          const newGrid = [...minesGrid];
-          newGrid.forEach(t => t.revealed = true);
-          setMinesGrid(newGrid);
-
-        } catch (e) { alert("領取失敗"); }
+        } catch(e) { console.log("Log error", e); }
       };
 
       // --- Blackjack Functions ---
       const startBlackjack = async () => {
-        const cost = 0.25;
-        if (points < cost) return alert("點數不足 0.25！");
+        const bet = parseFloat(bjBetInput);
+        if (isNaN(bet) || bet <= 0) return alert("請輸入有效的下注金額");
+        if (points < bet) return alert(`點數不足！需要 ${bet} P`);
         
         try {
           // Deduct entry fee
           await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'total'), { 
-            totalPoints: increment(-cost),
-            totalRedeemed: increment(cost)
+            totalPoints: increment(-bet),
+            totalRedeemed: increment(bet)
           });
           
           // Record transaction
           await addDoc(getPublicRef('submissions'), {
-            description: `♠️ 21點：入場費`,
+            description: `♠️ 21點：下注`,
             status: 'spent', 
             timestamp: serverTimestamp(),
             userId: user.uid,
-            awardedPoints: -cost
+            awardedPoints: -bet
           });
 
           const newDeck = createDeck();
@@ -651,12 +651,12 @@
           setBjDeck(newDeck);
           setBjPlayerHand(pHand);
           setBjDealerHand(dHand);
-          setBjBet(cost);
+          setBjBet(bet);
           setBjGameState('playing');
           setBjMessage('');
 
           if (calculateHand(pHand) === 21) {
-             finishBlackjack(pHand, dHand, cost, true);
+             finishBlackjack(pHand, dHand, bet, true);
           }
 
         } catch (e) { alert("遊戲啟動失敗"); }
@@ -691,7 +691,7 @@
 
       const doubleBlackjack = async () => {
         if (bjPlayerHand.length !== 2) return;
-        const extraCost = 0.25;
+        const extraCost = bjBet; // Double down means matching the original bet
         if (points < extraCost) return alert("點數不足，無法雙倍下注！");
 
         try {
@@ -954,8 +954,8 @@
                   <span className="text-[9px] text-[#666] font-bold uppercase">{item.timestamp?.toDate ? item.timestamp.toDate().toLocaleTimeString() : 'Just now'}</span>
                   <p className="text-xs font-medium text-[#ccc] truncate pr-2">{item.description}</p>
                 </div>
-                <div className={`text-sm font-bold shrink-0 ${item.awardedPoints > 0 ? 'text-[#2ed573]' : 'text-[#ff4757]'}`}>
-                  {item.awardedPoints > 0 ? `+${item.awardedPoints.toFixed(2)}` : item.awardedPoints}
+                <div className={`text-sm font-bold shrink-0 ${item.awardedPoints > 0 ? 'text-[#2ed573]' : (item.awardedPoints < 0 ? 'text-[#ff4757]' : 'text-[#666]')}`}>
+                  {item.awardedPoints > 0 ? `+${item.awardedPoints.toFixed(2)}` : (item.awardedPoints == 0 ? '--' : item.awardedPoints)}
                 </div>
               </div>
             ))}
@@ -1115,7 +1115,7 @@
               </div>
             )}
 
-            {/* Game Tab (Replaces old Blackjack tab) */}
+            {/* Game Tab */}
             {activeTab === 'games' && (
               <div className="space-y-6 animate-in flex flex-col items-center justify-start h-full pb-10">
                 {activeGame === null && (
@@ -1133,11 +1133,12 @@
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-xs font-bold text-[#d4af37]">0.25 P</p>
+                        <p className="text-xs font-bold text-[#d4af37]">自訂下注</p>
                         <p className="text-[9px] text-[#444]">ENTRY</p>
                       </div>
                     </div>
 
+                    {/* Mines Selection Card */}
                     <div onClick={() => setActiveGame('mines')} className="bg-[#1e1e1e] border border-[#333] p-6 flex items-center justify-between cursor-pointer hover:border-[#d4af37] transition-all">
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 bg-[#222] flex items-center justify-center rounded-full border border-[#333]">
@@ -1145,28 +1146,33 @@
                         </div>
                         <div>
                           <h3 className="font-bold text-[#e5e5e5]">Mines (掃雷)</h3>
-                          <p className="text-[10px] text-[#666]">避開地雷，累積倍率</p>
+                          <p className="text-[10px] text-[#666]">避開地雷，累積倍率 (Free Play)</p>
                           <p className="text-[9px] text-[#444] mt-1 border border-[#333] inline-block px-1 rounded">{settings.minesGridSize}x{settings.minesGridSize} Grid</p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-xs font-bold text-[#d4af37]">5.00 P</p>
-                        <p className="text-[9px] text-[#444]">ENTRY</p>
+                        <p className="text-xs font-bold text-[#2ecc71]">純娛樂模式</p>
+                        <p className="text-[9px] text-[#444]">FREE ENTRY</p>
                       </div>
                     </div>
+
                   </div>
                 )}
 
+                {/* Mines Game Interface */}
                 {activeGame === 'mines' && (
                   <div className="w-full flex flex-col items-center gap-6 animate-in">
                     <button onClick={() => { if(minesStatus === 'playing') return; setActiveGame(null); }} className="self-start text-[#666] text-xs hover:text-white mb-2">← 返回大廳</button>
                     
                     <div className="w-full bg-[#1e1e1e] p-6 border border-[#333] shadow-lg flex flex-col gap-4">
                       <div className="flex justify-between items-center border-b border-[#333] pb-3">
-                        <h2 className="text-lg font-bold text-[#d4af37] flex items-center gap-2"><Icon name="Bomb" size={20}/> MINES</h2>
+                        <h2 className="text-lg font-bold text-[#d4af37] flex items-center gap-2"><Icon name="Bomb" size={20}/> MINES <span className="text-[10px] text-[#666] bg-[#222] px-2 py-0.5 rounded ml-2">FREE MODE</span></h2>
                         <div className="text-right">
-                          <span className="text-xs text-[#666] block">Bet: 5.00</span>
-                          {minesStatus === 'playing' && <span className="text-sm font-bold text-[#d4af37]">Profit: {minesPotentialWin.toFixed(2)}</span>}
+                          {minesStatus === 'playing' ? (
+                            <span className="text-sm font-bold text-[#2ecc71]">x{minesMultiplier.toFixed(2)}</span>
+                          ) : (
+                            <span className="text-xs text-[#666] block">純娛樂不扣點</span>
+                          )}
                         </div>
                       </div>
 
@@ -1176,7 +1182,6 @@
                           <div className="flex justify-between items-center">
                             <span className="text-xs text-[#888]">地雷數量: {minesCount}</span>
                             <div className="flex gap-1">
-                              {/* 根據格子大小動態調整地雷選項，避免地雷數 > 格子數 */}
                               {[1, 2, 3, 5, 8]
                                 .filter(n => n < (settings.minesGridSize * settings.minesGridSize))
                                 .map(num => (
@@ -1191,8 +1196,8 @@
                             </div>
                           </div>
                           
-                          <button onClick={startMines} disabled={points < 5} className="btn-action w-full py-4 text-sm font-bold tracking-widest shadow-[0_0_30px_rgba(241,196,15,0.3)]">
-                            開始遊戲 (-5.00 P)
+                          <button onClick={startMines} className="btn-action w-full py-4 text-sm font-bold tracking-widest shadow-[0_0_30px_rgba(241,196,15,0.3)]">
+                            開始遊戲 (Free)
                           </button>
                         </div>
                       ) : (
@@ -1203,12 +1208,12 @@
                             disabled={minesMultiplier === 1.0} 
                             className={`w-full py-3 text-xs font-bold transition-all ${minesMultiplier > 1 ? 'btn-action' : 'bg-[#333] text-[#666] cursor-not-allowed'}`}
                           >
-                            收手 (Cashout {minesPotentialWin.toFixed(2)})
+                            收手 (Cashout)
                           </button>
                         </div>
                       )}
 
-                      {/* Mines Grid - 動態 CSS Grid Columns */}
+                      {/* Mines Grid */}
                       <div className="mines-grid mt-4" style={{ gridTemplateColumns: `repeat(${settings.minesGridSize || 3}, 1fr)` }}>
                         {minesGrid.length > 0 ? minesGrid.map((tile, i) => (
                           <div 
@@ -1233,7 +1238,7 @@
                       </div>
                       
                       {minesStatus === 'exploded' && <p className="text-center text-red-500 font-bold text-sm mt-2 animate-bounce">BOOM! 遊戲結束</p>}
-                      {minesStatus === 'cashed_out' && <p className="text-center text-[#2ecc71] font-bold text-sm mt-2">恭喜贏取 {minesPotentialWin.toFixed(2)} P!</p>}
+                      {minesStatus === 'cashed_out' && <p className="text-center text-[#2ecc71] font-bold text-sm mt-2">恭喜！倍率達成 x{minesMultiplier.toFixed(2)}</p>}
 
                     </div>
                   </div>
@@ -1303,16 +1308,28 @@
                     {/* Controls */}
                     <div className="grid grid-cols-2 gap-3 mt-2">
                       {bjGameState === 'betting' || bjGameState === 'gameOver' ? (
-                        <button onClick={startBlackjack} className="col-span-2 btn-action py-3 text-xs tracking-widest">
-                          發牌 (Deal) - 0.25 P
-                        </button>
+                        <div className="col-span-2 space-y-3">
+                            <div className="flex items-center gap-2 border border-[#333] bg-[#121212] p-2">
+                                <span className="text-[#666] text-xs font-bold">$</span>
+                                <input 
+                                  type="number" 
+                                  value={bjBetInput} 
+                                  onChange={(e) => setBjBetInput(e.target.value)}
+                                  className="w-full bg-transparent text-white text-sm outline-none font-mono"
+                                  placeholder="輸入下注金額"
+                                />
+                            </div>
+                            <button onClick={startBlackjack} className="w-full btn-action py-3 text-xs tracking-widest">
+                              發牌 (Deal)
+                            </button>
+                        </div>
                       ) : (
                         <>
                           <button onClick={hitBlackjack} className="bg-[#333] text-white py-3 text-xs font-bold border border-[#444] hover:bg-[#444]">要牌 (Hit)</button>
                           <button onClick={standBlackjack} className="btn-action py-3 text-xs font-bold">停牌 (Stand)</button>
                           {bjPlayerHand.length === 2 && (
                             <button onClick={doubleBlackjack} className="col-span-2 bg-[#d4af37]/20 text-[#d4af37] border border-[#d4af37] py-3 text-xs font-bold hover:bg-[#d4af37]/40">
-                              雙倍下注 (Double) - 0.25 P
+                              雙倍下注 (Double) - {bjBet} P
                             </button>
                           )}
                         </>
@@ -1541,11 +1558,21 @@
                   )}
                 </div>
 
+                {/* 新增：手動發放/扣除點數 */}
+                <div className="bg-[#1e1e1e] p-7 border border-[#333] shadow-xl space-y-4">
+                  <h3 className="font-bold text-[#d4af37] mb-4 flex gap-2 items-center text-sm"><Icon name="Plus" size={18}/> 手動發放/扣除點數</h3>
+                  <div className="space-y-4">
+                    <input className="w-full bg-[#121212] border border-[#333] p-4 text-sm font-light outline-none focus:border-[#d4af37] text-white" placeholder="原因 (例如: 活動獎勵)" value={adminManualReason} onChange={(e) => setAdminManualReason(e.target.value)} />
+                    <input type="number" className="w-full bg-[#121212] border border-[#333] p-4 text-sm font-light outline-none focus:border-[#d4af37] text-white" placeholder="點數 (正數增加，負數扣除)" value={adminManualPoints} onChange={(e) => setAdminManualPoints(e.target.value)} />
+                    <button onClick={handleManualPointAdjustment} disabled={isProcessing} className="w-full py-4 bg-[#333] text-white font-bold text-xs shadow-lg active:scale-95 hover:bg-[#444]">執行調整</button>
+                  </div>
+                </div>
+
                 <div className="bg-gradient-to-r from-[#111] to-[#222] p-6 text-white shadow-lg border border-[#333] relative overflow-hidden">
                   <h2 className="text-sm font-bold flex gap-2 items-center mb-4 text-[#d4af37]"><Icon name="Chart" size={18}/> 系統設置</h2>
-                  
-                  {/* Mines 設定 */}
-                  <div className="mb-6 p-4 border border-[#333] bg-[#000]/30">
+
+                   {/* Mines 設定 */}
+                   <div className="mb-6 p-4 border border-[#333] bg-[#000]/30">
                     <label className="text-xs text-[#888] mb-2 block font-bold uppercase flex items-center gap-2"><Icon name="Grid" size={14}/> Mines Grid Size: {settings.minesGridSize}x{settings.minesGridSize}</label>
                     <div className="flex gap-2 mb-2">
                         <button onClick={() => updateSettings(null, undefined, 3)} className={`flex-1 py-2 text-[10px] border ${settings.minesGridSize === 3 ? 'bg-[#d4af37] text-black border-[#d4af37]' : 'border-[#333] text-[#666]'}`}>3x3</button>
@@ -1586,15 +1613,6 @@
                         <button onClick={(e) => deleteItem(e, 'submissions', s.id, s.description)} className="text-[#666] hover:text-red-500 p-2"><Icon name="Trash2" size={14}/></button>
                       </div>
                     ))}
-                  </div>
-                </div>
-
-                <div className="bg-[#1e1e1e] p-7 border border-red-900/30 shadow-xl space-y-4">
-                  <h3 className="font-bold text-red-500 mb-4 flex gap-2 items-center text-sm"><Icon name="Alert" size={18}/> 懲罰扣點</h3>
-                  <div className="space-y-4">
-                    <input className="w-full bg-[#121212] border border-[#333] p-4 text-sm font-light outline-none focus:border-red-500 text-white" placeholder="扣分原因" value={penaltyDesc} onChange={(e) => setPenaltyDesc(e.target.value)} />
-                    <input type="number" className="w-full bg-[#121212] border border-[#333] p-4 text-sm font-light outline-none focus:border-red-500 text-white" placeholder="點數 (正數)" value={penaltyAmount} onChange={(e) => setPenaltyAmount(e.target.value)} />
-                    <button onClick={handleDeductPoints} disabled={isProcessing} className="w-full py-4 bg-red-600 text-white font-bold text-xs shadow-lg active:scale-95">執行扣點</button>
                   </div>
                 </div>
 
